@@ -1,16 +1,21 @@
 use std::sync::Arc;
 use winit::window::Window;
 
+use crate::render::device::GPUDevice;
+
 pub struct State {
-    window: Arc<Window>
+    window: Arc<Window>,
+    device: GPUDevice,
     // renderer ..
 
 }
 
 impl State {
     pub async fn new(window: Arc<Window>) -> Self {
+        let device = GPUDevice::new(window.clone()).await;
         Self {
-            window
+            window,
+            device
         }
     }
 

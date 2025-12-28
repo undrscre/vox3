@@ -13,7 +13,9 @@ use winit::{
 use crate::state::State;
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .filter_module("vox3", log::LevelFilter::Info)
+        .init();
     log::info!("mrrpp");
 
     // initialize the window ..!! hopefully .. we pray
