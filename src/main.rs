@@ -26,21 +26,35 @@ fn main() {
         .expect("can't create window");
 
     // initialize gamestate
-    event_loop.set_control_flow(ControlFlow::Poll);
-    let state = block_on(State::new(Arc::new(window)));
+    event_loop.set_control_flow(ControlFlow::Wait);
+    let mut state = block_on(State::new(Arc::new(window)));
 
     // execute through the eventloop
     let _ = event_loop.run(move |event, target| {
         match event {
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
-                log::info!("Ok! Bye bye :)");
-                target.exit();
+            Event::WindowEvent { event, .. } => {
+                match event {
+                    WindowEvent::CloseRequested => {
+                        log::info!("Ok! Bye bye :)");
+                        target.exit();
+                    }
+                    WindowEvent::Resized(size) => {
+                        state.resize(size);
+                    },
+                    WindowEvent::RedrawRequested => {
+                        state.update();
+                        match state.render() {
+                            Ok(_) => {}
+                            Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                            Err(wgpu::SurfaceError::OutOfMemory) => target.exit(),
+                            Err(e) => log::error!("surface error: {:?}", e),
+                        }
+                    }
+                    _ => {}
+                }
             },
             Event::AboutToWait => {
-                state.update();
-            }
-            Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } => {
-                state.render();
+                state.window.request_redraw();
             }
             _ => {},
         }
