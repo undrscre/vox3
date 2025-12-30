@@ -1,14 +1,21 @@
+struct VertexIn {
+    @location(0) position: vec3<i32>,
+    @location(1) packed: u32,
+};
+
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) @interpolate(flat) packed: u32,
+}
 @vertex
-fn vs_main(@builtin(vertex_index) vid: u32) -> @builtin(position) vec4<f32> {
-    var pos = array<vec2<f32>, 3>(
-        vec2<f32>(0.0, 0.5),
-        vec2<f32>(-0.5, -0.5),
-        vec2<f32>(0.5, -0.5)
-    );
-    return vec4<f32>(pos[vid], 0.0, 1.0);
+fn vs_main(in: VertexIn) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = vec4<f32>(f32(in.position.x), f32(in.position.y), f32(in.position.z), 1.0);
+    out.packed = in.packed;
+    return out;
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(0.2, 0.7, 1.0, 1.0);
+fn fs_main(vin: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(1.,1.,1., 1.0);
 }

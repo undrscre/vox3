@@ -1,13 +1,11 @@
 mod state;
 mod render;
-
+mod engine;
 use std::sync::Arc;
 use futures::executor::block_on;
 
 use winit::{
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder
+    dpi::PhysicalSize, event::{Event, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder
 };
 
 use crate::state::State;
@@ -22,6 +20,7 @@ fn main() {
     let event_loop = EventLoop::new().expect("can't create event loop");
     let window = WindowBuilder::new()
         .with_title("Hello meong! .. 2!")
+        .with_min_inner_size(PhysicalSize {width: 400, height: 300})
         .build(&event_loop)
         .expect("can't create window");
 
