@@ -1,7 +1,8 @@
-use std::sync::Arc;
-use winit::{dpi::PhysicalSize, window::Window};
+use std::{collections::HashSet, sync::Arc, time::Instant};
+use cgmath::{Vector3, InnerSpace};
+use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
-use crate::render::{device::GPUDevice, meshman::{GPUMesh, Mesh}, pipeline::Pipeline, renderer::Renderer};
+use crate::{engine::player::Player, render::{device::GPUDevice, meshman::{GPUMesh, Mesh}, pipeline::Pipeline, renderer::Renderer}};
 
 pub struct State {
     pub window: Arc<Window>,
@@ -9,20 +10,27 @@ pub struct State {
 
     // renderer related
     renderer: Renderer,
-    pipeline: Pipeline,
+    player: Player,
 
     // yolo
     test_mesh: GPUMesh,
-    pub size: PhysicalSize<u32>
+    pub size: PhysicalSize<u32>,
+
+    // todo AHHHHHHH decouple player event handling
+    pressed_keys: HashSet<KeyCode>,
+    last_update: Instant
 }
 
 impl State {
     pub async fn new(window: Arc<Window>) -> Self {
-        let gpu = GPUDevice::new(window.clone()).await;
-        let renderer = Renderer::new(&gpu);
-        let pipeline = Pipeline::new(&gpu);
-        let size = window.inner_size();
+        // actual game shish
+        let player = Player::new();
 
+        let gpu = GPUDevice::new(window.clone()).await;
+        let pipeline = Pipeline::new(&gpu, &player.cam_uniform);
+        let renderer = Renderer::new(pipeline);
+        let size = window.inner_size();
+        
         // test mesh
         let mesh = Mesh::default();
         let test_mesh = GPUMesh::from_mesh(&gpu.device, &mesh);
@@ -31,9 +39,11 @@ impl State {
             window,
             gpu,
             renderer,
-            pipeline,
+            player,
             size,
-            test_mesh
+            test_mesh,
+            pressed_keys: HashSet::new(),
+            last_update: Instant::now(),
         }
     }
 
@@ -51,12 +61,55 @@ impl State {
     }
 
     // handle input
-    pub fn input() {
-        todo!()
+    pub fn input(&mut self, event: &Event<()>) -> bool {
+        match event {
+            Event::WindowEvent { event: window_event, ..} => {
+                match window_event {
+                    WindowEvent::KeyboardInput { event: key_event, .. } => {
+                        if let PhysicalKey::Code(key_code) = key_event.physical_key {
+                            match key_event.state {
+                                ElementState::Pressed => { self.pressed_keys.insert(key_code); return true}
+                                ElementState::Released => { self.pressed_keys.remove(&key_code); return true}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        false
     }
 
     // update gamestate
-    pub fn update(&self) {
+    pub fn update(&mut self) {
+        let now = Instant::now();
+        let dt = (now - self.last_update).as_secs_f32();
+        self.last_update = now;
+
+        // todo decouple player updates
+        let mut wish_dir = Vector3::new(0.,0.,0.);
+        if self.pressed_keys.contains(&KeyCode::KeyW) { wish_dir.z += 1.; }
+        if self.pressed_keys.contains(&KeyCode::KeyS) { wish_dir.z -= 1.; }
+        if self.pressed_keys.contains(&KeyCode::KeyA) { wish_dir.x += 1.; }
+        if self.pressed_keys.contains(&KeyCode::KeyD) { wish_dir.x -= 1.; }
+        if self.pressed_keys.contains(&KeyCode::Space) { wish_dir.y += 1.; }
+        if self.pressed_keys.contains(&KeyCode::ShiftLeft) { wish_dir.y -= 1.; }
+
+        if wish_dir != Vector3::new(0., 0., 0.) {
+            wish_dir = wish_dir.normalize();
+            self.player.pos += wish_dir * dt * self.player.speed;
+            self.player.cam.pos = self.player.pos;
+            // log::info!("player pos {:?}", self.player.pos);
+        }
+        
+        self.player.cam_uniform = self.player.cam.into_uniform(self.size.width as f32 / self.size.height as f32);
+        self.gpu.queue.write_buffer(
+            &self.renderer.pipeline.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.player.cam_uniform]),
+        );
+
         self.window.request_redraw();
     }
 }

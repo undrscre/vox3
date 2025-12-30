@@ -30,6 +30,10 @@ fn main() {
 
     // execute through the eventloop
     let _ = event_loop.run(move |event, target| {
+        // consume event and pass it through the gamestate
+        if state.input(&event) {
+            return;
+        }
         match event {
             Event::WindowEvent { event, .. } => {
                 match event {

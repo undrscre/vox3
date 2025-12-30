@@ -8,16 +8,17 @@ pub struct Mesh {
     pub indices: Vec<u32>,
 }
 
-// hello triangle!
+// hello square!
 impl Default for Mesh {
     fn default() -> Self {
         Self {
             vertices: vec![
-                Vertex { position: [-1, -1, 0], packed: 0 },
-                Vertex { position: [1 , -1, 0], packed: 0 },
-                Vertex { position: [0 , 1 , 0], packed: 0 }
+                Vertex { position: [-1, -1, 0], packed: 0 }, // bottom-left
+                Vertex { position: [1 , -1, 0], packed: 0 }, // bottom-right
+                Vertex { position: [1 , 1 , 0], packed: 0 }, // top-right
+                Vertex { position: [-1, 1 , 0], packed: 0 }  // top-left
             ],
-            indices: vec![0, 1, 2]
+            indices: vec![0, 1, 2, 2, 3, 0]
         }
     }
 }

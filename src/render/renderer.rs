@@ -10,8 +10,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(gpu: &GPUDevice) -> Self {
-        let pipeline = Pipeline::new(gpu);
+    pub fn new(pipeline: Pipeline) -> Self {
         Self {pipeline}
     }
 
@@ -40,6 +39,7 @@ impl Renderer {
             });
 
             render_pass.set_pipeline(&self.pipeline.render_pipeline);
+            render_pass.set_bind_group(0, &self.pipeline.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
             render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
