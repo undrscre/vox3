@@ -4,8 +4,6 @@ pub struct Camera {
     pub fov: f32,
     pub znear: f32,
     pub zfar: f32,
-    
-    pub sensitivity: f32,
 
     pub pos: Point3<f32>,
     pub yaw: f32,
@@ -25,7 +23,6 @@ impl Default for Camera {
             fov: 90.0,
             znear: 0.01,
             zfar: 1000.,
-            sensitivity: 0.12,
             pos: Point3::new(0., 0., 0.),
             yaw: -90.0,
             pitch: 0.0

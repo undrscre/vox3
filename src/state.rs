@@ -62,6 +62,10 @@ impl State {
 
     // handle input
     pub fn input(&mut self, event: &Event<()>) -> bool {
+        if self.player.input(event, &self.window) {
+            return true;
+        }
+        
         match event {
             Event::WindowEvent { event: window_event, ..} => {
                 match window_event {
