@@ -1,27 +1,5 @@
 use wgpu::util::DeviceExt;
-
-use crate::engine::data::Vertex;
-
-// Yes It Is Evil How I Have 2 Mesh Structs
-pub struct Mesh {
-    pub vertices: Vec<Vertex>,
-    pub indices: Vec<u32>,
-}
-
-// hello square!
-impl Default for Mesh {
-    fn default() -> Self {
-        Self {
-            vertices: vec![
-                Vertex { position: [-1, -1, 0], packed: 0 }, // bottom-left
-                Vertex { position: [1 , -1, 0], packed: 0 }, // bottom-right
-                Vertex { position: [1 , 1 , 0], packed: 0 }, // top-right
-                Vertex { position: [-1, 1 , 0], packed: 0 }  // top-left
-            ],
-            indices: vec![0, 1, 2, 2, 3, 0]
-        }
-    }
-}
+use crate::engine::mesh::Mesh;
 
 // handle vertex and index buffers
 pub struct GPUMesh {

@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::Arc, time::Instant};
-use cgmath::{Vector3, InnerSpace};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
-use crate::{engine::player::Player, render::{device::GPUDevice, meshman::{GPUMesh, Mesh}, pipeline::Pipeline, renderer::Renderer}};
+use crate::{
+    engine::{mesh::{Mesh, mesh_chunk}, player::Player, world::World}, 
+    render::{device::GPUDevice, meshman::GPUMesh, pipeline::Pipeline, renderer::Renderer}};
 
 pub struct State {
     pub window: Arc<Window>,
@@ -32,9 +33,11 @@ impl State {
         let size = window.inner_size();
         
         // test mesh
-        let mesh = Mesh::default();
+        let world = World::new();
+        let mesh = mesh_chunk(&world);
+        // let mesh = Mesh::default();
         let test_mesh = GPUMesh::from_mesh(&gpu.device, &mesh);
-
+    
         Self {
             window,
             gpu,
@@ -90,22 +93,8 @@ impl State {
         let now = Instant::now();
         let dt = (now - self.last_update).as_secs_f32();
         self.last_update = now;
-
-        // todo decouple player updates
-        let mut wish_dir = Vector3::new(0.,0.,0.);
-        if self.pressed_keys.contains(&KeyCode::KeyW) { wish_dir.z += 1.; }
-        if self.pressed_keys.contains(&KeyCode::KeyS) { wish_dir.z -= 1.; }
-        if self.pressed_keys.contains(&KeyCode::KeyA) { wish_dir.x += 1.; }
-        if self.pressed_keys.contains(&KeyCode::KeyD) { wish_dir.x -= 1.; }
-        if self.pressed_keys.contains(&KeyCode::Space) { wish_dir.y += 1.; }
-        if self.pressed_keys.contains(&KeyCode::ShiftLeft) { wish_dir.y -= 1.; }
-
-        if wish_dir != Vector3::new(0., 0., 0.) {
-            wish_dir = wish_dir.normalize();
-            self.player.pos += wish_dir * dt * self.player.speed;
-            self.player.cam.pos = self.player.pos;
-            // log::info!("player pos {:?}", self.player.pos);
-        }
+        
+        self.player.update(&self.pressed_keys, dt);
         
         self.player.cam_uniform = self.player.cam.into_uniform(self.size.width as f32 / self.size.height as f32);
         self.gpu.queue.write_buffer(

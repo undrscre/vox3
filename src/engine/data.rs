@@ -1,5 +1,12 @@
 // definition of most datatypes contained throughout the entire engine
 
+// block definition data
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum BlockTypes {
+    AIR,
+    STONE
+}
+
 // vertex data
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]

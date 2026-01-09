@@ -14,7 +14,7 @@ impl Pipeline {
         // should be self explanatory yeah ? Good luck
         let shader = gpu
             .device
-            .create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("shaders/shader2.wgsl"));
 
         // camera bind group
         let camera_bind_group_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
