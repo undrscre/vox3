@@ -1,41 +1,31 @@
-use super::data::BlockTypes;
-use rand::Rng;
+use std::collections::HashMap;
+use cgmath::{Vector3, Zero};
 
-// simple world implementation
-// @TODO: make this moddable ? maybe
-//        & move this to data.rs
-pub const WORLD_SIZE: usize = 32;
-const TOTAL_SIZE: usize = WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
+use crate::game::chunk::{BuildIdentityHasher, Chunk};
 
+type ChunkMap = HashMap<u64, Chunk, BuildIdentityHasher>;
 pub struct World {
-    pub data: Vec<BlockTypes>
+    pub chunks: ChunkMap
 }
 
 impl World {
-    // default flat world
+    // stupid test impl
     pub fn new() -> Self {
-        let mut data = vec![BlockTypes::AIR; TOTAL_SIZE];
-        
-        for z in 0..WORLD_SIZE {
-            for x in 0..WORLD_SIZE {
-                let mut rng = rand::thread_rng();
-                
-                for y in 0..WORLD_SIZE {
-                    let pos = get_idx(x, y, z);
-                    if rng.gen_bool(0.3) { // 30% chance for a block
-                        data[pos] = BlockTypes::STONE;
-                    }
-                }
-            }
-        }
-
-        Self {
-            data
-        }
+        let mut chunks = ChunkMap::default();
+        let chunk = Chunk::new(Some(super::data::BlockTypes::STONE), Vector3::zero());
+        let key = Self::pack_coords(0, 0, 0);
+        chunks.insert(key, chunk);
+        World { chunks }
     }
-}
 
-#[inline]
-pub fn get_idx(x: usize, y: usize, z: usize) -> usize {
-    (x * WORLD_SIZE * WORLD_SIZE) + (y * WORLD_SIZE) + z
+    pub fn pack_coords(x: u16, y: u16, z: u16) -> u64 {
+        ((z as u64) << 32) | ((y as u64) << 16) | (x as u64)
+    }
+
+    pub fn get_chunk(&self, x: u16, y: u16, z: u16) -> Option<&Chunk> {
+        let key = Self::pack_coords(x, y, z);
+        self.chunks.get(&key)
+    }
+
+    
 }

@@ -53,11 +53,19 @@ fn vs_main(in: VertexIn) -> VertexOutput {
     return out;
 }
 
+var<private> ambient_strength: f32 = 0.21;
+var<private> ambient_light: vec3<f32> = vec3<f32>(0.5, 0.7, 1.0);
+
 @fragment
-fn fs_main(vin: VertexOutput) -> @location(0) vec4<f32> {
-    let block_pos = floor(vin.world_pos);
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let block_pos = floor(in.world_pos);
     let factor = 0.50 + 0.50 * hash3(block_pos);
-    
-    let color = vec3<f32>(0.5,0.5,0.5);
-    return vec4<f32>(color * factor, 1.0);
+
+    let sun_direction = normalize(vec3<f32>(0.5, 1.0, 0.3));
+    let normal = normalize(in.normal);
+    let diff = max(dot(normal, sun_direction), 0.0);
+
+    let ambient = ambient_light * ambient_strength;
+    let result = (vec3<f32>(0.5, 0.5, 0.5) * factor) * (ambient + diff);
+    return vec4<f32>(result, 1.0);
 }

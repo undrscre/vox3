@@ -1,4 +1,4 @@
-use wgpu::{PipelineLayoutDescriptor, RenderPipeline, util::DeviceExt, BindGroup, Buffer};
+use wgpu::{BindGroup, Buffer, PipelineLayoutDescriptor, RenderPipeline, util::DeviceExt};
 use crate::engine::{camera::CameraUniform, data::Vertex};
 
 use super::device::GPUDevice;
@@ -6,7 +6,7 @@ use super::device::GPUDevice;
 pub struct Pipeline {
     pub render_pipeline: RenderPipeline,
     pub camera_bind_group: BindGroup,
-    pub camera_buffer: Buffer
+    pub camera_buffer: Buffer,
 }
 
 impl Pipeline {
@@ -74,8 +74,17 @@ impl Pipeline {
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }), 
-                primitive: wgpu::PrimitiveState::default(), 
-                depth_stencil: None, 
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                }, 
+                depth_stencil: Some(wgpu::DepthStencilState { 
+                    format: crate::render::device::DEPTH_FORMAT, 
+                    depth_write_enabled: true, 
+                    depth_compare: wgpu::CompareFunction::Less, 
+                    stencil: wgpu::StencilState::default(), 
+                    bias: wgpu::DepthBiasState::default()
+                }), 
                 multisample: wgpu::MultisampleState::default(), 
                 multiview: None, 
                 cache: Default::default() 

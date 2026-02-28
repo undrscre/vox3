@@ -1,5 +1,5 @@
 use wgpu::util::DeviceExt;
-use crate::engine::mesh::Mesh;
+use crate::engine::meshgen::Mesh;
 
 // handle vertex and index buffers
 pub struct GPUMesh {

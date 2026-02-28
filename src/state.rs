@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::Arc, time::Instant};
+use log::{debug, info};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
-    engine::{mesh::{Mesh, mesh_chunk}, player::Player, world::World}, 
+    engine::{meshgen::{Mesh, mesh_chunk}, player::Player, world::World}, 
     render::{device::GPUDevice, meshman::GPUMesh, pipeline::Pipeline, renderer::Renderer}};
 
 pub struct State {
@@ -14,12 +15,16 @@ pub struct State {
     player: Player,
 
     // yolo
-    test_mesh: GPUMesh,
+    meshes: Vec<GPUMesh>,
     pub size: PhysicalSize<u32>,
 
     // todo AHHHHHHH decouple player event handling
     pressed_keys: HashSet<KeyCode>,
-    last_update: Instant
+    last_update: Instant,
+
+    // debug
+    frame_count: u64,
+    accumulated_time: f32,
 }
 
 impl State {
@@ -32,11 +37,15 @@ impl State {
         let renderer = Renderer::new(pipeline);
         let size = window.inner_size();
         
-        // test mesh
+        // test mesh(es)
         let world = World::new();
-        let mesh = mesh_chunk(&world);
-        // let mesh = Mesh::default();
-        let test_mesh = GPUMesh::from_mesh(&gpu.device, &mesh);
+        let mut meshes: Vec<GPUMesh> = Vec::new();
+        for chunk in &world.chunks {
+            let mesh = mesh_chunk(chunk.1);
+            let test_mesh = GPUMesh::from_mesh(&gpu.device, &mesh);
+
+            meshes.push(test_mesh);
+        }
     
         Self {
             window,
@@ -44,15 +53,18 @@ impl State {
             renderer,
             player,
             size,
-            test_mesh,
+            meshes,
             pressed_keys: HashSet::new(),
             last_update: Instant::now(),
+
+            frame_count: 0,
+            accumulated_time: 0.0
         }
     }
 
     // render out the game state
     pub fn render(&self) -> Result<(), wgpu::SurfaceError> {
-        self.renderer.render_frame(&self.gpu, &self.test_mesh)
+        self.renderer.render_frame(&self.gpu, &self.meshes)
     }
 
     // kjlsfdgkjlsfdakl
@@ -96,6 +108,17 @@ impl State {
         
         self.player.update(&self.pressed_keys, dt);
         
+        self.frame_count += 1;
+        self.accumulated_time += dt;
+        if self.frame_count >= (180 * 5) {
+            let avg_fps = self.frame_count as f32 / self.accumulated_time;
+            let ms_per_frame = (self.accumulated_time / self.frame_count as f32) * 1000.0;
+            info!("fps: {:.2} ({:.2}ms)", avg_fps, ms_per_frame);
+            
+            self.frame_count = 0;
+            self.accumulated_time = 0.0;
+        }
+
         self.player.cam_uniform = self.player.cam.into_uniform(self.size.width as f32 / self.size.height as f32);
         self.gpu.queue.write_buffer(
             &self.renderer.pipeline.camera_buffer,

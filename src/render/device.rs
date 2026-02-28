@@ -2,14 +2,22 @@ use wgpu::{Instance, InstanceDescriptor};
 use winit::{dpi::PhysicalSize, window::Window};
 use std::sync::Arc;
 
+pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+pub struct DepthTexture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+}
+
 pub struct GPUDevice {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    // pub depth_texture: wgpu::Texture, // maybe decouple these??
-    // pub depth_view: wgpu::TextureView,
+    
+    // don't decouple lol it's something global...   maybe
+    pub depth_texture: DepthTexture
 }
 
 impl GPUDevice {
@@ -51,20 +59,46 @@ impl GPUDevice {
             format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Immediate,
+            present_mode: wgpu::PresentMode::Fifo,
             desired_maximum_frame_latency: 0,
             alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],
         };
         
         surface.configure(&device, &config);
+        let depth_texture = Self::create_depth_texture(&device, &config);
+
         Self {
             surface,
             device,
             queue,
             config,
             size,
+            depth_texture
         }
+    }
+
+    pub fn create_depth_texture(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> DepthTexture {
+        let size = wgpu::Extent3d {
+            width: config.width.max(1),
+            height: config.height.max(1),
+            depth_or_array_layers: 1,
+        };
+
+        let desc = wgpu::TextureDescriptor {
+            label: Some("depth_texture"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+
+        let texture = device.create_texture(&desc);
+        let view = texture.create_view(&wgpu::wgt::TextureViewDescriptor::default());
+        DepthTexture { texture, view }
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
@@ -72,6 +106,9 @@ impl GPUDevice {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+
+            let depth_texture = Self::create_depth_texture(&self.device, &self.config);
+            self.depth_texture = depth_texture;
         }
     }
 }

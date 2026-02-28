@@ -1,10 +1,13 @@
 // definition of most datatypes contained throughout the entire engine
 
+pub const CHUNK_SIZE: usize = 16;
+
 // block definition data
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
 pub enum BlockTypes {
     AIR,
-    STONE
+    STONE,
 }
 
 // vertex data

@@ -1,6 +1,8 @@
 mod state;
 mod render;
 mod engine;
+mod game;
+
 use std::sync::Arc;
 use futures::executor::block_on;
 
