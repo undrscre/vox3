@@ -1,5 +1,4 @@
 use std::{collections::HashSet, sync::Arc, time::Instant};
-use log::{debug, info};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
@@ -21,10 +20,6 @@ pub struct State {
     // todo AHHHHHHH decouple player event handling
     pressed_keys: HashSet<KeyCode>,
     last_update: Instant,
-
-    // debug
-    frame_count: u64,
-    accumulated_time: f32,
 }
 
 impl State {
@@ -56,9 +51,6 @@ impl State {
             meshes,
             pressed_keys: HashSet::new(),
             last_update: Instant::now(),
-
-            frame_count: 0,
-            accumulated_time: 0.0
         }
     }
 
@@ -107,17 +99,6 @@ impl State {
         self.last_update = now;
         
         self.player.update(&self.pressed_keys, dt);
-        
-        self.frame_count += 1;
-        self.accumulated_time += dt;
-        if self.frame_count >= (180 * 5) {
-            let avg_fps = self.frame_count as f32 / self.accumulated_time;
-            let ms_per_frame = (self.accumulated_time / self.frame_count as f32) * 1000.0;
-            info!("fps: {:.2} ({:.2}ms)", avg_fps, ms_per_frame);
-            
-            self.frame_count = 0;
-            self.accumulated_time = 0.0;
-        }
 
         self.player.cam_uniform = self.player.cam.into_uniform(self.size.width as f32 / self.size.height as f32);
         self.gpu.queue.write_buffer(
