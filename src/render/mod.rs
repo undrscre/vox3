@@ -1,4 +1,4 @@
 pub mod device;
 pub mod pipeline;
 pub mod renderer;
-pub mod meshman;
+pub mod manager;

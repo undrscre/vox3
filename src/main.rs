@@ -50,7 +50,7 @@ fn main() {
                         state.update();
                         match state.render() {
                             Ok(_) => {}
-                            Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                            Err(wgpu::SurfaceError::Lost) => state.resize(state.gpu.size),
                             Err(wgpu::SurfaceError::OutOfMemory) => target.exit(),
                             Err(e) => log::error!("surface error: {:?}", e),
                         }

@@ -21,7 +21,7 @@ impl Player {
         let cam = Camera::new(pos);
         let cam_uniform = CameraUniform::new(); // @note: probably decouple this ?? don't know where to though
         Self {
-            pos, cam, cam_uniform, speed: 12., sensitivity: 0.12, mouse_held: false,
+            pos, cam, cam_uniform, speed: 120., sensitivity: 0.12, mouse_held: false,
         }
     }
 

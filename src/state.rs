@@ -1,25 +1,33 @@
-use std::{collections::HashSet, sync::Arc, time::Instant};
+use std::{collections::HashSet, mem, sync::Arc, time::Instant};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
-    engine::{meshgen::{Mesh, mesh_chunk}, player::Player, world::World}, 
-    render::{device::GPUDevice, meshman::GPUMesh, pipeline::Pipeline, renderer::Renderer}};
+    engine::{data::pack_chunk_coords, player::Player},
+    game::{
+        chunk::ChunkManager,
+        world::{World, WorldConfig, WorldGenerator}
+    }, 
+    render::{
+        device::GPUDevice, 
+        pipeline::Pipeline, 
+        renderer::Renderer
+    }
+};
 
 pub struct State {
     pub window: Arc<Window>,
-    gpu: GPUDevice,
+    pub gpu: GPUDevice,
 
-    // renderer related
-    renderer: Renderer,
-    player: Player,
+    pub renderer: Renderer,
 
-    // yolo
-    meshes: Vec<GPUMesh>,
-    pub size: PhysicalSize<u32>,
+    pub world: World,
+    pub chunk_manager: ChunkManager,
+    pub world_generator: WorldGenerator,
 
-    // todo AHHHHHHH decouple player event handling
-    pressed_keys: HashSet<KeyCode>,
-    last_update: Instant,
+    // todo consolidate to another struct
+    pub player: Player,
+    pub pressed_keys: HashSet<KeyCode>,
+    pub last_update:  Instant,
 }
 
 impl State {
@@ -30,39 +38,34 @@ impl State {
         let gpu = GPUDevice::new(window.clone()).await;
         let pipeline = Pipeline::new(&gpu, &player.cam_uniform);
         let renderer = Renderer::new(pipeline);
-        let size = window.inner_size();
         
-        // test mesh(es)
-        let world = World::new();
-        let mut meshes: Vec<GPUMesh> = Vec::new();
-        for chunk in &world.chunks {
-            let mesh = mesh_chunk(chunk.1);
-            let test_mesh = GPUMesh::from_mesh(&gpu.device, &mesh);
-
-            meshes.push(test_mesh);
-        }
-    
+        let world_config = WorldConfig::default();
+        let world = World::new(world_config);
+        let chunk_manager = ChunkManager::new(8);
+        let world_generator = WorldGenerator::new();
+        
         Self {
             window,
             gpu,
             renderer,
             player,
-            size,
-            meshes,
             pressed_keys: HashSet::new(),
             last_update: Instant::now(),
+
+            world,
+            chunk_manager,
+            world_generator
         }
     }
 
     // render out the game state
     pub fn render(&self) -> Result<(), wgpu::SurfaceError> {
-        self.renderer.render_frame(&self.gpu, &self.meshes)
+        self.renderer.render_frame(&self.gpu)
     }
 
     // kjlsfdgkjlsfdakl
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
             self.gpu.resize(new_size);
         }
     }
@@ -100,7 +103,19 @@ impl State {
         
         self.player.update(&self.pressed_keys, dt);
 
-        self.player.cam_uniform = self.player.cam.into_uniform(self.size.width as f32 / self.size.height as f32);
+        let player_pos = self.player.pos;
+        let chunk_commands = self.chunk_manager.get_load_commands(player_pos);
+        for cmd in chunk_commands {
+            let key = pack_chunk_coords(cmd.x, cmd.y, cmd.z);
+            if !self.world.chunks.contains_key(&key) {
+                let new_chunk = self.world_generator.generate(&self.world.metadata, cmd);
+                self.world.insert(cmd, new_chunk);
+            }
+        }
+
+        self.renderer.sync_world(&self.gpu, &mut self.world);
+
+        self.player.cam_uniform = self.player.cam.into_uniform(self.gpu.size.width as f32 / self.gpu.size.height as f32);
         self.gpu.queue.write_buffer(
             &self.renderer.pipeline.camera_buffer,
             0,

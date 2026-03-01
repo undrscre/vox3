@@ -1,6 +1,12 @@
 // definition of most datatypes contained throughout the entire engine
+// ^ maybe. idk
+// decouple everythiong once u got it working
+
+use cgmath::{Point3, Vector3};
 
 pub const CHUNK_SIZE: usize = 16;
+
+pub type ChunkCoords = i32;
 
 // block definition data
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -8,6 +14,21 @@ pub const CHUNK_SIZE: usize = 16;
 pub enum BlockTypes {
     AIR,
     STONE,
+}
+
+// position..whatever
+pub fn pack_chunk_coords(x: i32, y: i32, z: i32) -> u64 {
+    ((z as u64 & 0x1FFFFF) << 42) |
+    ((y as u64 & 0x1FFFFF) << 21) |
+    (x as u64 & 0x1FFFFF)
+}
+
+pub fn world_to_chunk(pos: Point3<f32>) -> Point3<ChunkCoords> {
+    Point3::new(
+        (pos.x / CHUNK_SIZE as f32).floor() as ChunkCoords,
+        (pos.y / CHUNK_SIZE as f32).floor() as ChunkCoords,
+        (pos.z / CHUNK_SIZE as f32).floor() as ChunkCoords,
+    )
 }
 
 // vertex data
