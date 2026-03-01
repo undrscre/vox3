@@ -9,7 +9,3 @@ git clone This Repository Actually
 cargo run
 Yeah
 ```
-
-### meow
----
-<img src="wawa.png" width=400 align="center">
