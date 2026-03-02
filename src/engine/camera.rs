@@ -22,7 +22,7 @@ impl Default for Camera {
         Self {
             fov: 90.0,
             znear: 0.01,
-            zfar: 1000.,
+            zfar: 10000.,
             pos: Point3::new(0., 0., 0.),
             yaw: -90.0,
             pitch: 0.0

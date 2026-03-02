@@ -40,9 +40,9 @@ impl State {
         let renderer = Renderer::new(pipeline);
         
         let world_config = WorldConfig::default();
+        let world_generator = WorldGenerator::new(&world_config);
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(8);
-        let world_generator = WorldGenerator::new();
+        let chunk_manager = ChunkManager::new(16);
         
         Self {
             window,
@@ -109,6 +109,10 @@ impl State {
             let key = pack_chunk_coords(cmd.x, cmd.y, cmd.z);
             if !self.world.chunks.contains_key(&key) {
                 let new_chunk = self.world_generator.generate(&self.world.metadata, cmd);
+                if new_chunk.is_empty || new_chunk.is_solid {
+                    self.world.chunks.insert(key, new_chunk);
+                    continue;
+                }
                 self.world.insert(cmd, new_chunk);
             }
         }

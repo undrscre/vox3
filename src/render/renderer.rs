@@ -74,9 +74,6 @@ impl Renderer {
 
         for key in dirty_chunks {
             if let Some(chunk) = world.chunks.get(&key) {
-                if chunk.data.is_empty() {
-                    continue;
-                }
                 let mesh_data = mesh_chunk(&chunk);
                 self.resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
             }
