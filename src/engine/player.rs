@@ -17,7 +17,7 @@ pub struct Player {
 
 impl Player {
     pub fn new() -> Self {
-        let pos = Point3 {x:0.,y:0.,z:0.};
+        let pos = Point3 {x:0.,y:120.,z:0.};
         let cam = Camera::new(pos);
         let cam_uniform = CameraUniform::new(); // @note: probably decouple this ?? don't know where to though
         Self {

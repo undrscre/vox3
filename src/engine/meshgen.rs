@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use crate::engine::{data::{BlockTypes, CHUNK_SIZE, Vertex}};
 use crate::game::chunk::Chunk;
 
@@ -83,9 +81,9 @@ pub fn mesh_chunk(chunk: &Chunk) -> Mesh {
                             let packed: u32 = pack_information(face.normal, block);
                             vertices.push(Vertex {
                                 position: [
-                                    (x as i32 + v[0]) + chunk.position.x as i32 * CHUNK_SIZE as i32,
-                                    (y as i32 + v[1]) + chunk.position.y as i32 * CHUNK_SIZE as i32,
-                                    (z as i32 + v[2]) + chunk.position.z as i32 * CHUNK_SIZE as i32,
+                                    (x as i32 + v[0] * 2) + chunk.position.x as i32 * CHUNK_SIZE as i32,
+                                    (y as i32 + v[1] * 2) + chunk.position.y as i32 * CHUNK_SIZE as i32,
+                                    (z as i32 + v[2] * 2) + chunk.position.z as i32 * CHUNK_SIZE as i32,
                                 ],
                                 packed
                             });

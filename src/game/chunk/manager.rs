@@ -1,8 +1,5 @@
-use std::collections::HashSet;
-
 use cgmath::{Point3, Vector3};
-
-use crate::{engine::data::{ChunkCoords, world_to_chunk}, game::chunk::BuildIdentityHasher};
+use crate::{engine::data::{ChunkCoords, world_to_chunk}};
 
 pub struct ChunkManager {
     pub gen_distance: i32,

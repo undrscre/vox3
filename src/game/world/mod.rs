@@ -1,14 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub mod generator;
 use cgmath::Point3;
 pub use generator::{GenerationType, WorldGenerator};
 use rustc_hash::FxHashMap;
 
-use crate::{engine::data::{ChunkCoords, pack_chunk_coords}, game::chunk::{
-    BuildIdentityHasher, 
-    Chunk, IdentityHasher
-}};
+use crate::{engine::data::{ChunkCoords, pack_chunk_coords}, game::chunk::Chunk};
 
 // eventually switch out for a more moddable approach lol
 

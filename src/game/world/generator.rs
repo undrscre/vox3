@@ -80,7 +80,7 @@ impl WorldGenerator {
                 chunk.is_empty = stone_count == 0;
                 chunk.is_solid = air_count == 0;
             }
-            _ => { unimplemented!() }
+            // _ => { unimplemented!() }
         }
 
         chunk

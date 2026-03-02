@@ -1,4 +1,4 @@
-use std::{collections::HashSet, mem, sync::Arc, time::Instant};
+use std::{collections::{HashMap, HashSet}, mem, sync::Arc, time::Instant};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     }, 
     render::{
         device::GPUDevice, 
-        pipeline::Pipeline, 
+        pipeline::{Pipeline, PipelineType}, 
         renderer::Renderer
     }
 };
@@ -36,8 +36,16 @@ impl State {
         let player = Player::new();
 
         let gpu = GPUDevice::new(window.clone()).await;
-        let pipeline = Pipeline::new(&gpu, &player.cam_uniform);
-        let renderer = Renderer::new(pipeline);
+
+        let mut pipelines: HashMap<PipelineType, Pipeline> = HashMap::new();
+
+        let default_pipeline = Pipeline::default_pipeline(&gpu, &player.cam_uniform);
+        pipelines.insert(PipelineType::Default, default_pipeline);
+        
+        let debug_pipeline = Pipeline::debug_pipeline(&gpu, &player.cam_uniform);
+        // pipelines.insert(PipelineType::DebugWireframe, debug_pipeline);
+
+        let renderer = Renderer::new(pipelines);
         
         let world_config = WorldConfig::default();
         let world_generator = WorldGenerator::new(&world_config);
@@ -120,11 +128,15 @@ impl State {
         self.renderer.sync_world(&self.gpu, &mut self.world);
 
         self.player.cam_uniform = self.player.cam.into_uniform(self.gpu.size.width as f32 / self.gpu.size.height as f32);
-        self.gpu.queue.write_buffer(
-            &self.renderer.pipeline.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.player.cam_uniform]),
-        );
+        let binding = [self.player.cam_uniform];
+        let cam_data = bytemuck::cast_slice(&binding);
+
+        if let Some(pipe) = self.renderer.pipelines.get(&PipelineType::Default) {
+            self.gpu.queue.write_buffer(&pipe.camera_buffer, 0, cam_data);
+        }
+        if let Some(pipe) = self.renderer.pipelines.get(&PipelineType::DebugWireframe) {
+            self.gpu.queue.write_buffer(&pipe.camera_buffer, 0, cam_data);
+        }
 
         self.window.request_redraw();
     }

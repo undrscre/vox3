@@ -1,4 +1,4 @@
-use wgpu::{BindGroup, Buffer, PipelineLayoutDescriptor, RenderPipeline, util::DeviceExt};
+use wgpu::{BindGroup, Buffer, PipelineLayout, PipelineLayoutDescriptor, RenderPipeline, util::DeviceExt};
 use crate::engine::{camera::CameraUniform, data::Vertex};
 
 use super::device::GPUDevice;
@@ -9,13 +9,15 @@ pub struct Pipeline {
     pub camera_buffer: Buffer,
 }
 
-impl Pipeline {
-    pub fn new(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> Self {
-        // should be self explanatory yeah ? Good luck
-        let shader = gpu
-            .device
-            .create_shader_module(wgpu::include_wgsl!("shaders/shader2.wgsl"));
+#[derive(Eq, Hash, PartialEq)]
 
+pub enum PipelineType {
+    Default,
+    DebugWireframe,
+}
+
+impl Pipeline {
+    fn camera_layout(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> (PipelineLayout, BindGroup, Buffer) {
         // camera bind group
         let camera_bind_group_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -46,17 +48,30 @@ impl Pipeline {
             label: Some("camera_bind_group"),
         });
 
-        let layout = gpu
+        (
+            gpu
+                .device
+                .create_pipeline_layout(&PipelineLayoutDescriptor {
+                    label: Some("layout"),
+                    bind_group_layouts: &[&camera_bind_group_layout],
+                    push_constant_ranges: &[],
+                }),
+            camera_bind_group,
+            camera_buffer
+        )
+    }
+
+    pub fn default_pipeline(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> Self {
+        // should be self explanatory yeah ? Good luck
+        let shader = gpu
             .device
-            .create_pipeline_layout(&PipelineLayoutDescriptor {
-                label: Some("layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
-                push_constant_ranges: &[],
-            });
+            .create_shader_module(wgpu::include_wgsl!("shaders/shader2.wgsl"));
         
+        let (layout, camera_bind_group, camera_buffer) = Self::camera_layout(gpu, camera_uniform);
+
         let render_pipeline = gpu.device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor { 
-                label: Some("pipeline"), 
+                label: Some("default pipeline"), 
                 layout: Some(&layout), 
                 vertex: wgpu::VertexState { 
                     module: &shader, 
@@ -81,9 +96,61 @@ impl Pipeline {
                 depth_stencil: Some(wgpu::DepthStencilState { 
                     format: crate::render::device::DEPTH_FORMAT, 
                     depth_write_enabled: true, 
-                    depth_compare: wgpu::CompareFunction::Less, 
-                    stencil: wgpu::StencilState::default(), 
+                    depth_compare: wgpu::CompareFunction::Greater, 
+                    stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState::default()
+                }), 
+                multisample: wgpu::MultisampleState::default(), 
+                multiview: None, 
+                cache: Default::default() 
+            });
+
+        Self { render_pipeline, camera_bind_group, camera_buffer }
+    }
+
+    pub fn debug_pipeline(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> Self {
+        let shader = gpu
+            .device
+            .create_shader_module(wgpu::include_wgsl!("shaders/debug.wgsl"));
+        
+        let (layout, camera_bind_group, camera_buffer) = Self::camera_layout(gpu, camera_uniform);
+
+        let render_pipeline = gpu.device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor { 
+                label: Some("debug pipeline"), 
+                layout: Some(&layout), 
+                vertex: wgpu::VertexState { 
+                    module: &shader, 
+                    entry_point: Some("dvs_main"), 
+                    compilation_options: Default::default(), 
+                    buffers: &[Vertex::layout()] 
+                }, 
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("dfs_main"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: gpu.config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }), 
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::LineList,
+                    polygon_mode: wgpu::PolygonMode::Line,
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState { 
+                    format: crate::render::device::DEPTH_FORMAT, 
+                    depth_write_enabled: true, 
+                    depth_compare: wgpu::CompareFunction::GreaterEqual, 
+                    stencil: wgpu::StencilState::default(), 
+                    bias: wgpu::DepthBiasState {
+                        constant: 2, 
+                        slope_scale: 1.0,
+                        clamp: 0.0,
+                    },
                 }), 
                 multisample: wgpu::MultisampleState::default(), 
                 multiview: None, 

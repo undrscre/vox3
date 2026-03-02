@@ -44,7 +44,7 @@ impl GPUDevice {
         
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::empty(),
+                required_features: wgpu::Features::POLYGON_MODE_LINE,
                 required_limits: wgpu::Limits::defaults(),
                 label: None,
                 ..Default::default()

@@ -51,10 +51,6 @@ impl Camera {
         self.forward().cross(Vector3::unit_y()).normalize()
     }
 
-    pub fn up(&self) -> Vector3<f32> {
-        self.right().cross(self.forward()).normalize()
-    }
-
     pub fn view_matrix(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(
             self.pos, 
@@ -64,7 +60,14 @@ impl Camera {
     }
 
     pub fn proj_matrix(&self, aspect: f32) -> Matrix4<f32> {
-        perspective(Deg(self.fov), aspect, self.znear, self.zfar)
+        let proj = perspective(Deg(self.fov), aspect, self.znear, self.zfar);
+        let remap = cgmath::Matrix4::new(
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, -1.0, 0.0, // flip z
+            0.0, 0.0, 1.0, 1.0,  // offset to [0, 1] range
+        );
+        remap * proj
     }
 
     pub fn add_yaw_pitch(&mut self, delta_yaw: f32, delta_pitch: f32) {

@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use log::info;
 
-use crate::{engine::meshgen::mesh_chunk, game::world::World, render::manager::{GPUMesh, ResourceManager}};
+use crate::{engine::meshgen::mesh_chunk, game::{Chunk, world::World}, render::{manager::{GPUMesh, ResourceManager}, pipeline::PipelineType}};
 
 use super::{
     device::GPUDevice,
@@ -8,13 +10,13 @@ use super::{
 };
 
 pub struct Renderer {
-    pub pipeline: Pipeline,
+    pub pipelines: HashMap<PipelineType, Pipeline>,
     pub resource_manager: ResourceManager
 }
 
 impl Renderer {
-    pub fn new(pipeline: Pipeline) -> Self {
-        Self {pipeline, resource_manager: ResourceManager::new() }
+    pub fn new(pipelines: HashMap<PipelineType, Pipeline>) -> Self {
+        Self {pipelines, resource_manager: ResourceManager::new() }
     }
 
     pub fn render_frame(&self, gpu: &GPUDevice) -> Result<(), wgpu::SurfaceError> {
@@ -39,7 +41,7 @@ impl Renderer {
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &gpu.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
+                        load: wgpu::LoadOp::Clear(0.0),
                         store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
@@ -48,15 +50,30 @@ impl Renderer {
                 occlusion_query_set: None 
             });
 
-            render_pass.set_pipeline(&self.pipeline.render_pipeline);
-            render_pass.set_bind_group(0, &self.pipeline.camera_bind_group, &[]);
+            if let Some(pipeline) = self.pipelines.get(&PipelineType::Default) {
+                render_pass.set_pipeline(&pipeline.render_pipeline);
+                render_pass.set_bind_group(0, &pipeline.camera_bind_group, &[]);
 
-            for mesh in self.resource_manager.meshes.values() {
-                if mesh.index_count == 0 { continue; }
+                for mesh in self.resource_manager.meshes.values() {
+                    if mesh.index_count == 0 { continue; }
 
-                render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
-                render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                    render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
+                    render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
+                    render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+                }
+            } else {
+                panic!("default pipeline isn't inserted into the renderer; panicking now")
+            }
+
+            if let Some(debug_pipeline) = self.pipelines.get(&PipelineType::DebugWireframe) {
+                render_pass.set_pipeline(&debug_pipeline.render_pipeline);
+                render_pass.set_bind_group(0, &debug_pipeline.camera_bind_group, &[]);
+                
+                for debug_mesh in self.resource_manager.debug_meshes.values() {
+                    render_pass.set_vertex_buffer(0, debug_mesh.vertex_buf.slice(..));
+                    render_pass.set_index_buffer(debug_mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
+                    render_pass.draw_indexed(0..debug_mesh.index_count, 0, 0..1);
+                }
             }
         }
 
@@ -76,6 +93,11 @@ impl Renderer {
             if let Some(chunk) = world.chunks.get(&key) {
                 let mesh_data = mesh_chunk(&chunk);
                 self.resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
+
+                if let Some(_dbg) = self.pipelines.get(&PipelineType::DebugWireframe) {
+                    let debug_mesh = Chunk::create_debug_mesh(chunk.position, chunk.is_empty, chunk.is_solid);
+                    self.resource_manager.update_debug_mesh(&gpu.device, key, &debug_mesh);
+                }
             }
         }
     }

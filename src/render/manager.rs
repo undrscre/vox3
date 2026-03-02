@@ -1,20 +1,29 @@
 use std::collections::HashMap;
 
 use wgpu::util::DeviceExt;
-use crate::{engine::meshgen::Mesh, game::chunk::BuildIdentityHasher, render::device::GPUDevice};
+use crate::{engine::meshgen::Mesh, game::chunk::BuildIdentityHasher};
 
 pub struct ResourceManager {
-    pub meshes: HashMap<u64, GPUMesh, BuildIdentityHasher>
+    pub meshes: HashMap<u64, GPUMesh, BuildIdentityHasher>,
+    pub debug_meshes: HashMap<u64, GPUMesh, BuildIdentityHasher>
 }
 
 impl ResourceManager {
     pub fn new() -> Self {
-        Self { meshes: HashMap::with_hasher(BuildIdentityHasher::default()) }
+        Self { 
+            meshes: HashMap::with_hasher(BuildIdentityHasher::default()), 
+            debug_meshes: HashMap::with_hasher(BuildIdentityHasher::default()) 
+        }
     }
 
     pub fn update_chunk_mesh(&mut self, device: &wgpu::Device, key: u64, mesh_data: &Mesh) {
         let gpu_mesh = GPUMesh::from_mesh(&device, mesh_data);
         self.meshes.insert(key, gpu_mesh);
+    }
+
+    pub fn update_debug_mesh(&mut self, device: &wgpu::Device, key: u64, mesh_data: &Mesh) {
+        let gpu_mesh = GPUMesh::from_mesh(&device, mesh_data);
+        self.debug_meshes.insert(key, gpu_mesh);
     }
 
     pub fn unload_chunk(&mut self, key: u64) {

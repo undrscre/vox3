@@ -2,7 +2,7 @@
 // ^ maybe. idk
 // decouple everythiong once u got it working
 
-use cgmath::{Point3, Vector3};
+use cgmath::{Point3};
 
 pub const CHUNK_SIZE: usize = 16;
 
