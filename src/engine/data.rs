@@ -4,7 +4,7 @@
 
 use cgmath::{Point3};
 
-pub const CHUNK_SIZE: usize = 16;
+pub const CHUNK_SIZE: usize = 32;
 
 pub type ChunkCoords = i32;
 

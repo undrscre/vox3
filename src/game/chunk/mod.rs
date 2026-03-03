@@ -77,7 +77,7 @@ impl Chunk {
 
     #[inline]
     fn idx(x: usize, y: usize, z: usize) -> usize {
-        (x * CHUNK_SIZE * CHUNK_SIZE) + (y * CHUNK_SIZE) + z
+        (x * CHUNK_SIZE * CHUNK_SIZE) + (z * CHUNK_SIZE) + y
     }
 }
 

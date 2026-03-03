@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, mem, sync::Arc, time::Instant};
+use std::{collections::{HashMap, HashSet}, sync::{Arc}, time::Instant};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
@@ -50,7 +50,7 @@ impl State {
         let world_config = WorldConfig::default();
         let world_generator = WorldGenerator::new(&world_config);
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(16);
+        let chunk_manager = ChunkManager::new(8);
         
         Self {
             window,
