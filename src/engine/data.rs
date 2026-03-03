@@ -23,6 +23,18 @@ pub fn pack_chunk_coords(x: i32, y: i32, z: i32) -> u64 {
     (x as u64 & 0x1FFFFF)
 }
 
+pub fn unpack_chunk_coords(packed: u64) -> Point3<ChunkCoords> {
+    let x = (packed & 0x1FFFFF) as i32;
+    let y = ((packed >> 21) & 0x1FFFFF) as i32;
+    let z = ((packed >> 42) & 0x1FFFFF) as i32;
+
+    fn sign_extend(n: i32) -> i32 {
+        if (n & 0x100000) != 0 { n | !0x1FFFFF } else { n }
+    }
+
+    Point3::new(sign_extend(x), sign_extend(y), sign_extend(z))
+}
+
 pub fn world_to_chunk(pos: Point3<f32>) -> Point3<ChunkCoords> {
     Point3::new(
         (pos.x / CHUNK_SIZE as f32).floor() as ChunkCoords,

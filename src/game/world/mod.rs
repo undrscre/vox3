@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 pub mod generator;
 use cgmath::Point3;
@@ -9,12 +9,11 @@ use crate::{engine::data::{ChunkCoords, pack_chunk_coords}, game::chunk::Chunk};
 
 // eventually switch out for a more moddable approach lol
 
-type ChunkMap = FxHashMap<u64, Chunk>;
+type ChunkMap = FxHashMap<u64, Arc<Chunk>>;
 
 pub struct World {
     pub metadata: WorldConfig,
     pub chunks: ChunkMap,
-    pub dirty_chunks: HashSet<u64> // positions of chunks to be meshed
 }
 
 #[derive(Clone)]
@@ -35,16 +34,6 @@ impl World {
         Self {
             metadata: config,
             chunks: FxHashMap::default(),
-            dirty_chunks: HashSet::new()
         }
-    }
-
-    pub fn insert(&mut self, pos: Point3<ChunkCoords>, chunk: Chunk) {
-        let key = pack_chunk_coords(pos.x, pos.y, pos.z);
-
-        self.chunks.insert(key, chunk);
-        self.dirty_chunks.insert(key);
-        
-        // todo: mark neighbors as dirty
     }
 }

@@ -2,26 +2,41 @@ use std::sync::Arc;
 
 use cgmath::{Point3, Vector3};
 use rustc_hash::FxHashSet;
-use crate::{engine::{data::{ChunkCoords, pack_chunk_coords, world_to_chunk}, meshgen::{Mesh, mesh_chunk}}, game::{Chunk, world::{World, WorldGenerator}}, render::{device::GPUDevice, manager::ResourceManager, renderer::Renderer}};
+use crate::{engine::{data::{ChunkCoords, pack_chunk_coords, unpack_chunk_coords, world_to_chunk}, meshgen::{Mesh, mesh_chunk}}, game::{Chunk, world::{World, WorldGenerator}}, render::{device::GPUDevice, manager::ResourceManager, renderer::Renderer}};
 
 pub struct ChunkManager {
     pub gen_distance: i32,
     pub last_player_chunk: Point3<ChunkCoords>,
 
-    chunk_tx: std::sync::mpsc::Sender<(Point3<ChunkCoords>, Chunk, Option<Mesh>)>,
-    chunk_rx: std::sync::mpsc::Receiver<(Point3<ChunkCoords>, Chunk, Option<Mesh>)>,
-    pending_chunks: FxHashSet<u64>
+    chunk_tx: std::sync::mpsc::Sender<(Point3<ChunkCoords>, Chunk)>,
+    chunk_rx: std::sync::mpsc::Receiver<(Point3<ChunkCoords>, Chunk)>,
+
+    mesh_tx: std::sync::mpsc::Sender<(u64, Mesh)>,
+    mesh_rx: std::sync::mpsc::Receiver<(u64, Mesh)>,
+
+    pending_chunks: FxHashSet<u64>,
+    dirty_chunks: FxHashSet<u64>
+}
+
+pub struct ChunkNeighborhood {
+    pub center: Arc<Chunk>,
+    pub neighbors: [Option<Arc<Chunk>>; 6],
 }
 
 impl ChunkManager {
     pub fn new(gen_distance: i32) -> Self {
         let (chunk_tx, chunk_rx) = std::sync::mpsc::channel();
+        let (mesh_tx, mesh_rx) = std::sync::mpsc::channel();
+
         Self {
             gen_distance,
             last_player_chunk: Point3 {x: 0, y: 0, z: 0},
             chunk_tx,
             chunk_rx,
-            pending_chunks: FxHashSet::default()
+            mesh_tx,
+            mesh_rx,
+            pending_chunks: FxHashSet::default(),
+            dirty_chunks: FxHashSet::default()
         }
     }
 
@@ -77,29 +92,90 @@ impl ChunkManager {
                 let tx = self.chunk_tx.clone();
                 let generator = generator.clone();
                 rayon::spawn(move || {
-                    let new_chunk = generator.generate(cmd);
-                    let mut mesh_data = None;
-                    if !new_chunk.is_empty && !new_chunk.is_solid {
-                        mesh_data = Some(mesh_chunk(&new_chunk));
-                    }
-
-                    let _ = tx.send((cmd, new_chunk, mesh_data));
+                    let new_chunk = generator.generate(cmd); 
+                    let _ = tx.send((cmd, new_chunk));
                 });
             }
         }
 
-        let mut limit = 0;
-        while let Ok((cmd, new_chunk, mesh_data)) = self.chunk_rx.try_recv() {
+        while let Ok((cmd, new_chunk)) = self.chunk_rx.try_recv() {
             let key = pack_chunk_coords(cmd.x, cmd.y, cmd.z);
             self.pending_chunks.remove(&key);
+  
+            world.chunks.insert(key, Arc::new(new_chunk));
+            self.mark_area_dirty(cmd);
+        }
 
-            world.chunks.insert(key, new_chunk);
-            if let Some(mesh) = mesh_data {
-                resource_manager.update_chunk_mesh(&gpu.device, key, &mesh);
+        self.process_mesh_queue(world, gpu, resource_manager);
+    }
+
+    fn mark_area_dirty(&mut self, position: Point3<ChunkCoords>) {
+        let center_key = pack_chunk_coords(position.x, position.y, position.z);
+        self.dirty_chunks.insert(center_key);
+
+        let offsets = [
+            Vector3::new(0, 0, 1),  // 0: +z (front)
+            Vector3::new(0, 0, -1), // 1: -z (back)
+            Vector3::new(1, 0, 0),  // 2: +x (right)
+            Vector3::new(-1, 0, 0), // 3: -x (left)
+            Vector3::new(0, 1, 0),  // 4: +y (top)
+            Vector3::new(0, -1, 0), // 5: -y (bottom)
+        ];
+
+        for offset in offsets {
+            let neighbor_position = position + offset;
+            let neighbor_key = pack_chunk_coords(
+                neighbor_position.x, 
+                neighbor_position.y, 
+                neighbor_position.z
+            );
+            self.dirty_chunks.insert(neighbor_key);
+        }
+    }
+
+    fn try_get_neighborhood(&self, world: &World, position: Point3<ChunkCoords>) -> Option<ChunkNeighborhood> {
+        let center = world.chunks.get(&pack_chunk_coords(position.x, position.y, position.z))?.clone();
+        let mut neighbors: [Option<Arc<Chunk>>; 6] = [None, None, None, None, None, None];
+        let offsets = [
+            Vector3::new(0, 0, 1),  // 0: +z (front)
+            Vector3::new(0, 0, -1), // 1: -z (back)
+            Vector3::new(1, 0, 0),  // 2: +x (right)
+            Vector3::new(-1, 0, 0), // 3: -x (left)
+            Vector3::new(0, 1, 0),  // 4: +y (top)
+            Vector3::new(0, -1, 0), // 5: -y (bottom)
+        ];
+
+        for i in 0..6 {
+            let neighbor_pos = position + offsets[i];
+            let key = pack_chunk_coords(neighbor_pos.x, neighbor_pos.y, neighbor_pos.z);
+            neighbors[i] = world.chunks.get(&key).cloned();
+        }
+
+        Some(ChunkNeighborhood { center, neighbors })
+    }
+
+    fn process_mesh_queue(&mut self, world: &mut World, gpu: &GPUDevice, resource_manager: &mut ResourceManager) {
+        let to_mesh: Vec<u64> = self.dirty_chunks.iter().cloned().collect();
+
+        let mut limit = 0;
+        for key in to_mesh {
+            let position = unpack_chunk_coords(key);
+
+            if let Some(neighborhood) = self.try_get_neighborhood(world, position) {
+                let tx = self.mesh_tx.clone();
+                rayon::spawn(move || {
+                    let mesh_data = mesh_chunk(&neighborhood);
+                    let _ = tx.send((key, mesh_data));
+                });
+
+                self.dirty_chunks.remove(&key);
             }
+        }
 
+        while let Ok((key, mesh_data)) = self.mesh_rx.try_recv() {
+            resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
             limit += 1;
-            if limit > 255 { println!("limit reached"); break; }
+            if limit > 100 { break; }
         }
     }
 }

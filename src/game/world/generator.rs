@@ -1,6 +1,6 @@
 use std::f32;
 
-use cgmath::{Matrix, Matrix2, Point3};
+use cgmath::{Matrix, Matrix2, Point3, num_traits::Pow};
 use fastnoise_lite::{FastNoiseLite, FractalType, NoiseType};
 
 use crate::{engine::data::{BlockTypes, CHUNK_SIZE, ChunkCoords}, game::{Chunk, world::{WorldConfig, generator}}};
