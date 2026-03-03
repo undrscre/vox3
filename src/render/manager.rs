@@ -1,18 +1,19 @@
 use std::collections::HashMap;
 
+use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
 use crate::{engine::meshgen::Mesh, game::chunk::BuildIdentityHasher};
 
 pub struct ResourceManager {
-    pub meshes: HashMap<u64, GPUMesh, BuildIdentityHasher>,
-    pub debug_meshes: HashMap<u64, GPUMesh, BuildIdentityHasher>
+    pub meshes: FxHashMap<u64, GPUMesh>,
+    pub debug_meshes: FxHashMap<u64, GPUMesh>
 }
 
 impl ResourceManager {
     pub fn new() -> Self {
         Self { 
-            meshes: HashMap::with_hasher(BuildIdentityHasher::default()), 
-            debug_meshes: HashMap::with_hasher(BuildIdentityHasher::default()) 
+            meshes: FxHashMap::default(), 
+            debug_meshes: FxHashMap::default() 
         }
     }
 
@@ -27,7 +28,10 @@ impl ResourceManager {
     }
 
     pub fn unload_chunk(&mut self, key: u64) {
-        self.meshes.remove(&key);
+        if let Some(mesh_entry) = self.meshes.remove(&key) {
+            mesh_entry.vertex_buf.destroy(); 
+            mesh_entry.index_buf.destroy();
+        }
     }
 }
 

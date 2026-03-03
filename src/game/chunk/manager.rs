@@ -107,6 +107,7 @@ impl ChunkManager {
         }
 
         self.process_mesh_queue(world, gpu, resource_manager);
+        self.unload_distant_chunks(world, resource_manager);
     }
 
     fn mark_area_dirty(&mut self, position: Point3<ChunkCoords>) {
@@ -157,12 +158,15 @@ impl ChunkManager {
     fn process_mesh_queue(&mut self, world: &mut World, gpu: &GPUDevice, resource_manager: &mut ResourceManager) {
         let to_mesh: Vec<u64> = self.dirty_chunks.iter().cloned().collect();
 
-        let mut limit = 0;
         for key in to_mesh {
             let position = unpack_chunk_coords(key);
 
             if let Some(neighborhood) = self.try_get_neighborhood(world, position) {
                 let tx = self.mesh_tx.clone();
+                if neighborhood.neighbors.iter().any(|n| n.is_none()) {
+                    continue; 
+                }
+
                 rayon::spawn(move || {
                     let mesh_data = mesh_chunk(&neighborhood);
                     let _ = tx.send((key, mesh_data));
@@ -172,10 +176,31 @@ impl ChunkManager {
             }
         }
 
+        let start_time = std::time::Instant::now();
         while let Ok((key, mesh_data)) = self.mesh_rx.try_recv() {
             resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
-            limit += 1;
-            if limit > 100 { break; }
+            if start_time.elapsed().as_millis() > 2 { break; }
+        }
+    }
+
+    fn unload_distant_chunks(&mut self, world: &mut World, resource_manager: &mut ResourceManager) {
+        let player_chunk = self.last_player_chunk;
+        let limit = self.gen_distance + 4;
+
+        let to_remove: Vec<u64> = world.chunks.keys().filter(|&&key| {
+            let position = unpack_chunk_coords(key);
+            let dist_x = (position.x - player_chunk.x).abs();
+            let dist_y = (position.y - player_chunk.y).abs();
+            let dist_z = (position.z - player_chunk.z).abs();
+
+            dist_x > limit || dist_y > limit || dist_z > limit
+        }).cloned().collect();
+
+        for key in to_remove {
+            self.dirty_chunks.remove(&key);
+            world.chunks.remove(&key);
+            self.pending_chunks.remove(&key);
+            resource_manager.unload_chunk(key);
         }
     }
 }
