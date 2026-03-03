@@ -17,6 +17,7 @@ pub struct World {
     pub dirty_chunks: HashSet<u64> // positions of chunks to be meshed
 }
 
+#[derive(Clone)]
 pub struct WorldConfig {
     pub seed: i32,
     pub generator: GenerationType,

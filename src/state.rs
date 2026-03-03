@@ -1,4 +1,5 @@
-use std::{collections::{HashMap, HashSet}, sync::{Arc}, time::Instant};
+use std::{collections::{HashMap, HashSet}, sync::{Arc, Mutex}, time::Instant};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
@@ -22,7 +23,7 @@ pub struct State {
 
     pub world: World,
     pub chunk_manager: ChunkManager,
-    pub world_generator: WorldGenerator,
+    pub world_generator: Arc<WorldGenerator>,
 
     // todo consolidate to another struct
     pub player: Player,
@@ -48,9 +49,9 @@ impl State {
         let renderer = Renderer::new(pipelines);
         
         let world_config = WorldConfig::default();
-        let world_generator = WorldGenerator::new(&world_config);
+        let world_generator = Arc::new(WorldGenerator::new(&world_config));
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(8);
+        let chunk_manager = ChunkManager::new(16);
         
         Self {
             window,
@@ -112,21 +113,14 @@ impl State {
         self.player.update(&self.pressed_keys, dt);
 
         let player_pos = self.player.pos;
-        let chunk_commands = self.chunk_manager.get_load_commands(player_pos);
-        for cmd in chunk_commands {
-            let key = pack_chunk_coords(cmd.x, cmd.y, cmd.z);
-            if !self.world.chunks.contains_key(&key) {
-                let new_chunk = self.world_generator.generate(&self.world.metadata, cmd);
-                if new_chunk.is_empty || new_chunk.is_solid {
-                    self.world.chunks.insert(key, new_chunk);
-                    continue;
-                }
-                self.world.insert(cmd, new_chunk);
-            }
-        }
-
-        self.renderer.sync_world(&self.gpu, &mut self.world);
-
+        self.chunk_manager.update(
+            &mut self.world, 
+            &self.world_generator, 
+            &self.gpu,
+            &mut self.renderer.resource_manager, 
+            player_pos
+        );
+        
         self.player.cam_uniform = self.player.cam.into_uniform(self.gpu.size.width as f32 / self.gpu.size.height as f32);
         let binding = [self.player.cam_uniform];
         let cam_data = bytemuck::cast_slice(&binding);

@@ -5,13 +5,15 @@ use fastnoise_lite::{FastNoiseLite, FractalType, NoiseType};
 
 use crate::{engine::data::{BlockTypes, CHUNK_SIZE, ChunkCoords}, game::{Chunk, world::{WorldConfig, generator}}};
 
+#[derive(Clone)]
 pub enum GenerationType {
     Flat,
     Test
 }
 
 pub struct WorldGenerator {
-    pub noise: FastNoiseLite
+    pub noise: FastNoiseLite,
+    pub config: WorldConfig
 }
 
 impl WorldGenerator {
@@ -23,15 +25,16 @@ impl WorldGenerator {
         noise.set_frequency(Some(0.002));
         
         Self { 
-            noise
+            noise,
+            config: config.clone()
         }
     }
 
-    pub fn generate(&self, config: &WorldConfig, chunk_position: Point3<ChunkCoords>) -> Chunk {
+    pub fn generate(&self, chunk_position: Point3<ChunkCoords>) -> Chunk {
         let mut chunk = Chunk::new(None, chunk_position);
 
         // todo: refactor later lol
-        match config.generator {
+        match self.config.generator {
             GenerationType::Flat => {
                 if chunk_position.y == 0 {
                     for x in 0..CHUNK_SIZE {

@@ -82,24 +82,4 @@ impl Renderer {
         
         Ok(())
     }
-
-    pub fn sync_world(&mut self, gpu: &GPUDevice, world: &mut World) {
-        let dirty_chunks: Vec<u64> = world.dirty_chunks.drain().collect();
-        if !dirty_chunks.is_empty() {
-            log::info!("meshing {} dirty chunks", dirty_chunks.len());
-        }
-
-        for key in dirty_chunks {
-            if let Some(chunk) = world.chunks.get(&key) {
-                let mesh_data = mesh_chunk(&chunk);
-                self.resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
-
-                if let Some(_dbg) = self.pipelines.get(&PipelineType::DebugWireframe) {
-                    let debug_mesh = Chunk::create_debug_mesh(chunk.position, chunk.is_empty, chunk.is_solid);
-                    self.resource_manager.update_debug_mesh(&gpu.device, key, &debug_mesh);
-                }
-            }
-        }
-    }
-
 }
