@@ -77,6 +77,33 @@ impl Renderer {
             }
         }
 
+        
+        if let Some(sky_pipeline) = self.pipelines.get(&PipelineType::Sky) {
+            {
+                let mut sky_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
+                    label: Some("sky render pass"), 
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment { 
+                        view: &view, 
+                        resolve_target: None, 
+                        ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                        depth_slice: None
+                    })], 
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { 
+                        view: &gpu.depth_texture.view, 
+                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Discard }), 
+                        stencil_ops: None,
+                    }), 
+                    ..Default::default()
+                });
+
+                sky_pass.set_pipeline(&sky_pipeline.render_pipeline);
+                sky_pass.set_bind_group(0, &sky_pipeline.camera_bind_group, &[]);
+
+                // DRAW 4 VERTICES OUT OF THIN AIR. :yum:
+                sky_pass.draw(0..4, 0..1);
+            }
+        }
+
         gpu.queue.submit(Some(encoder.finish()));
         output.present();
         

@@ -14,6 +14,7 @@ pub struct Pipeline {
 pub enum PipelineType {
     Default,
     DebugWireframe,
+    Sky,
 }
 
 impl Pipeline {
@@ -22,7 +23,7 @@ impl Pipeline {
         let camera_bind_group_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -65,7 +66,7 @@ impl Pipeline {
         // should be self explanatory yeah ? Good luck
         let shader = gpu
             .device
-            .create_shader_module(wgpu::include_wgsl!("shaders/shader2.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("shaders/main.wgsl"));
         
         let (layout, camera_bind_group, camera_buffer) = Self::camera_layout(gpu, camera_uniform);
 
@@ -155,6 +156,53 @@ impl Pipeline {
                 multisample: wgpu::MultisampleState::default(), 
                 multiview: None, 
                 cache: Default::default() 
+            });
+
+        Self { render_pipeline, camera_bind_group, camera_buffer }
+    }
+
+    pub fn sky_pipeline(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> Self {
+        let shader = gpu 
+            .device
+            .create_shader_module(wgpu::include_wgsl!("shaders/sky.wgsl"));
+
+        let (layout, camera_bind_group, camera_buffer) = Self::camera_layout(gpu, camera_uniform);
+
+        let render_pipeline = gpu.device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor { 
+                label: Some("sky pipeline"), 
+                layout: Some(&layout), 
+                vertex: wgpu::VertexState { 
+                    module: &shader, 
+                    entry_point: Some("svs_main"), 
+                    compilation_options: Default::default(), 
+                    buffers: &[], 
+                }, 
+                primitive: wgpu::PrimitiveState { 
+                    topology: wgpu::PrimitiveTopology::TriangleStrip, 
+                    cull_mode: None,
+                    ..Default::default()
+                }, 
+                depth_stencil: Some(wgpu::DepthStencilState { 
+                    format: crate::render::device::DEPTH_FORMAT, 
+                    depth_write_enabled: false, 
+                    depth_compare: wgpu::CompareFunction::Equal, 
+                    stencil: wgpu::StencilState::default(), 
+                    bias: wgpu::DepthBiasState::default()
+                }), 
+                multisample: wgpu::MultisampleState::default(), 
+                fragment: Some(wgpu::FragmentState { 
+                    module: &shader, 
+                    entry_point: Some("sfs_main"), 
+                    compilation_options: Default::default(), 
+                    targets: &[Some(wgpu::ColorTargetState { 
+                        format: gpu.config.format, 
+                        blend: Some(wgpu::BlendState::REPLACE), 
+                        write_mask: wgpu::ColorWrites::all() 
+                    })]
+                }), 
+                multiview: None, 
+                cache: None 
             });
 
         Self { render_pipeline, camera_bind_group, camera_buffer }

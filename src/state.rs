@@ -44,8 +44,11 @@ impl State {
         let default_pipeline = Pipeline::default_pipeline(&gpu, &player.cam_uniform);
         pipelines.insert(PipelineType::Default, default_pipeline);
         
-        let debug_pipeline = Pipeline::debug_pipeline(&gpu, &player.cam_uniform);
+        // let debug_pipeline = Pipeline::debug_pipeline(&gpu, &player.cam_uniform);
         // pipelines.insert(PipelineType::DebugWireframe, debug_pipeline);
+
+        let sky_pipeline = Pipeline::sky_pipeline(&gpu, &player.cam_uniform);
+        pipelines.insert(PipelineType::Sky, sky_pipeline);
 
         let renderer = Renderer::new(pipelines);
         
@@ -127,10 +130,14 @@ impl State {
         let binding = [self.player.cam_uniform];
         let cam_data = bytemuck::cast_slice(&binding);
 
+        // i gotta write a better api :sobbing:
         if let Some(pipe) = self.renderer.pipelines.get(&PipelineType::Default) {
             self.gpu.queue.write_buffer(&pipe.camera_buffer, 0, cam_data);
         }
         if let Some(pipe) = self.renderer.pipelines.get(&PipelineType::DebugWireframe) {
+            self.gpu.queue.write_buffer(&pipe.camera_buffer, 0, cam_data);
+        }
+        if let Some(pipe) = self.renderer.pipelines.get(&PipelineType::Sky) {
             self.gpu.queue.write_buffer(&pipe.camera_buffer, 0, cam_data);
         }
 

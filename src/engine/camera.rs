@@ -76,7 +76,13 @@ impl Camera {
     }
 
     pub fn into_uniform(&self, aspect: f32) -> CameraUniform {
-        CameraUniform { view_proj: (OPENGL_TO_WGPU * self.proj_matrix(aspect) * self.view_matrix()).into() }
+        let view_proj = (OPENGL_TO_WGPU * self.proj_matrix(aspect) * self.view_matrix());
+        CameraUniform { 
+            view_proj: view_proj.into(),
+            inv_view_proj: view_proj.invert().unwrap().into(),
+            pos: self.pos.into(),
+            _padding: 0.
+        }
     }
 }
 
@@ -84,10 +90,18 @@ impl Camera {
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     pub view_proj: [[f32; 4]; 4],
+    pub inv_view_proj: [[f32; 4]; 4],
+    pub pos: [f32; 3],
+    pub _padding: f32,
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
-        Self { view_proj: Matrix4::identity().into() }
+        Self { 
+            view_proj: Matrix4::identity().into(),
+            inv_view_proj: Matrix4::identity().into(),
+            pos: Point3::new(0., 0., 0.).into(),
+            _padding: 0.
+        }
     }
 }

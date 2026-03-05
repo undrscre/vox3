@@ -1,4 +1,9 @@
-struct Camera { view_proj: mat4x4<f32> };
+struct Camera { 
+    view_proj: mat4x4<f32>,
+    inv_view_proj: mat4x4<f32>,
+    pos: vec3<f32>,
+};
+
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 struct VertexIn {
@@ -10,6 +15,7 @@ struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) world_pos: vec3<f32>,
     @location(1) normal: vec3<f32>,
+    @location(2) block_type: u32,
 };
 
 struct UnpackedData {
@@ -49,12 +55,13 @@ fn vs_main(in: VertexIn) -> VertexOutput {
     out.position = camera.view_proj * vec4<f32>(vec3<f32>(in.position), 1.0);
     out.world_pos = vec3<f32>(in.position) - data.normal * 0.001;
     out.normal = data.normal;
+    out.block_type = data.block_type;
 
     return out;
 }
 
 var<private> ambient_strength: f32 = 0.21;
-var<private> ambient_light: vec3<f32> = vec3<f32>(0.5, 0.7, 1.0);
+var<private> ambient_light: vec3<f32> = vec3<f32>(0.1, 0.4, 0.8);
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -66,6 +73,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diff = max(dot(normal, sun_direction), 0.0);
 
     let ambient = ambient_light * ambient_strength;
-    let result = (vec3<f32>(0.5, 0.5, 0.5) * factor) * (ambient + diff);
+
+    var block_color: vec3<f32>;
+    switch in.block_type {
+        case 0u: { block_color = vec3<f32>(0.0, 0.0, 0.0); }
+        case 2u: { block_color = vec3<f32>(0.0, 0.0, 1.0); }
+        default: { block_color = vec3<f32>(0.5, 0.5, 0.5); }
+    }
+    let result = (block_color * factor) * (ambient + diff);
+
     return vec4<f32>(result, 1.0);
 }

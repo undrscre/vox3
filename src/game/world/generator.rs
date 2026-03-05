@@ -65,7 +65,7 @@ impl WorldGenerator {
                     for j in 0..grid_size {
                         let wx = (chunk_position.x * CHUNK_SIZE as i32) + (i * step) as i32;
                         let wz = (chunk_position.z * CHUNK_SIZE as i32) + (j * step) as i32;
-                        samples[i][j] = (self.noise.get_noise_2d(wx as f32, wz as f32) + 1.0) * 256.0;
+                        samples[i][j] = (self.noise.get_noise_2d(wx as f32, wz as f32) + 1.0).pow(2.) * 100.0;
                     }
                 }
 
