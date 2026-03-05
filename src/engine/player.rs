@@ -1,12 +1,20 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
-use cgmath::{InnerSpace, Point3, Vector3};
+use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use winit::{event::{DeviceEvent, Event, MouseButton, WindowEvent}, keyboard::KeyCode};
 
-use crate::engine::camera::{Camera, CameraUniform};
+use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes, ChunkCoords, pack_chunk_coords, world_to_chunk}}, game::{Chunk, world::World}};
 
 pub struct Player {
     pub pos: Point3<f32>,
+    pub vel: Vector3<f32>,
+
+    pub on_ground: bool,
+
+    // internal references for collision checks
+    pub chunk_pos: Point3<ChunkCoords>,
+    pub current_chunk: Option<Arc<Chunk>>,
+
     pub cam: Camera,
     pub cam_uniform: CameraUniform,
 
@@ -17,36 +25,108 @@ pub struct Player {
 
 impl Player {
     pub fn new() -> Self {
-        let pos = Point3 {x:0.,y:250.,z:0.};
+        let pos = Point3 {x:0.,y:300.,z:0.};
         let cam = Camera::new(pos);
         let cam_uniform = CameraUniform::new(); // @note: probably decouple this ?? don't know where to though
         Self {
-            pos, cam, cam_uniform, speed: 32., sensitivity: 0.12, mouse_held: false,
+            pos, 
+            vel: Vector3::zero(),
+            on_ground: false,
+
+            cam, 
+            cam_uniform,
+
+            chunk_pos: Point3 {x: 0, y: 0, z: 0},
+            current_chunk: None,
+
+            speed: 12., sensitivity: 0.12, mouse_held: false,
         }
     }
 
-    pub fn update(&mut self, pressed_keys: &HashSet<KeyCode>, dt: f32) {
-    
+    pub fn update(&mut self, pressed_keys: &HashSet<KeyCode>, dt: f32, world: &World) {
+        // self.get_local_chunk(world);
+
         let mut wish_dir = Vector3::new(0.,0.,0.);
         if pressed_keys.contains(&KeyCode::KeyW) { wish_dir.z += 1.; }
         if pressed_keys.contains(&KeyCode::KeyS) { wish_dir.z -= 1.; }
         if pressed_keys.contains(&KeyCode::KeyA) { wish_dir.x -= 1.; }
         if pressed_keys.contains(&KeyCode::KeyD) { wish_dir.x += 1.; }
-        if pressed_keys.contains(&KeyCode::Space) { wish_dir.y += 1.; }
-        if pressed_keys.contains(&KeyCode::ShiftLeft) { wish_dir.y -= 1.; }
 
-        if wish_dir != Vector3::new(0., 0., 0.) {
-            wish_dir = wish_dir.normalize();
+        // gravity constant
+        self.vel.y -= 35.0 * dt;
 
-            let forward = Vector3::new(self.cam.forward().x, 0.0, self.cam.forward().z).normalize();
-            let right = Vector3::new(self.cam.right().x, 0.0, self.cam.right().z).normalize();
-            self.pos += (forward * wish_dir.z + right * wish_dir.x + Vector3::unit_y() * wish_dir.y) * dt * self.speed;
-            
-            self.cam.pos = self.pos;
-            // log::info!("player pos {:?}", self.player.pos);
+        if self.on_ground && pressed_keys.contains(&KeyCode::Space) {
+            self.vel.y = 10.0;
+            self.on_ground = false;
         }
 
+        if wish_dir.magnitude() > 0.0 {
+            wish_dir = wish_dir.normalize();
+            let forward = Vector3::new(self.cam.forward().x, 0.0, self.cam.forward().z).normalize();
+            let right = Vector3::new(self.cam.right().x, 0.0, self.cam.right().z).normalize();
+            
+            let horizontal_move = (forward * wish_dir.z + right * wish_dir.x) * self.speed;
+            self.vel.x = horizontal_move.x;
+            self.vel.z = horizontal_move.z;
+        } else {
+            self.vel.x = 0.0;
+            self.vel.z = 0.0;
+        }
+
+        // if self.on_ground && pressed_keys.contains(&KeyCode::ShiftLeft) {
+        //     self.vel.y = 50.0;
+        //     self.on_ground = false;
+        // }
+
+        self.on_ground = false;
+
+        let next_y = self.pos.y + self.vel.y * dt;
+        if !self.is_colliding(Point3::new(self.pos.x, next_y, self.pos.z), world) {
+            self.pos.y = next_y;
+        } else {
+            if self.vel.y < 0.0 { 
+                self.on_ground = true;
+                // self.pos.y = next_y.ceil(); 
+            }
+            self.vel.y = 0.0;
+        }
+
+        let next_x = self.pos.x + self.vel.x * dt;
+        let next_z = self.pos.z + self.vel.z * dt;
+
+        if !self.is_colliding(Point3::new(next_x, self.pos.y, self.pos.z), world) {
+            self.pos.x = next_x;
+        } else {
+            self.vel.x = 0.0;
+        }
+
+        if !self.is_colliding(Point3::new(self.pos.x, self.pos.y, next_z), world) {
+            self.pos.z = next_z;
+        } else {
+            self.vel.z = 0.0;
+        }
+
+        self.cam.pos = self.pos;
     }
+
+    pub fn is_colliding(&self, next_position: Point3<f32>, world: &World) -> bool {
+        let radius = 0.29;
+        let height = 1.79;
+
+        for dx in [-radius, radius] {
+            for dy in [-height, -(height / 2.0), 0.0] {
+                for dz in [-radius, radius] {
+                    let check_pos = next_position + Vector3::new(dx, dy, dz);
+                    if world.get_block_at(check_pos) == BlockTypes::STONE {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
     // capture input
     pub fn input(&mut self, event: &Event<()>, window: &winit::window::Window) -> bool {
         match event {

@@ -1,5 +1,4 @@
 use crate::{engine::data::{BlockTypes, CHUNK_SIZE, Vertex}, game::chunk::manager::ChunkNeighborhood};
-use crate::game::chunk::Chunk;
 
 struct Face {
     pub normal: [i8; 3],
@@ -80,7 +79,7 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
                             
                             neighbor.get(nnx, nny, nnz) == BlockTypes::AIR
                         } else {
-                            true 
+                            true
                         }
                     } else {
                         chunk.get(nx as usize, ny as usize, nz as usize) == BlockTypes::AIR

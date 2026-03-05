@@ -1,11 +1,11 @@
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 pub mod generator;
 use cgmath::Point3;
 pub use generator::{GenerationType, WorldGenerator};
 use rustc_hash::FxHashMap;
 
-use crate::{engine::data::{ChunkCoords, pack_chunk_coords}, game::chunk::Chunk};
+use crate::{engine::data::{BlockTypes, pack_chunk_coords}, game::chunk::Chunk};
 
 // eventually switch out for a more moddable approach lol
 
@@ -16,7 +16,7 @@ pub struct World {
     pub chunks: ChunkMap,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorldConfig {
     pub seed: i32,
     pub generator: GenerationType,
@@ -25,7 +25,7 @@ pub struct WorldConfig {
 
 impl Default for WorldConfig {
     fn default() -> Self {
-        Self { seed: 0, generator: GenerationType::Test, version: 0 }
+        Self { seed: rand::random::<i32>(), generator: GenerationType::Test, version: 0 }
     }
 }
 
@@ -34,6 +34,27 @@ impl World {
         Self {
             metadata: config,
             chunks: FxHashMap::default(),
+        }
+    }
+
+    pub fn get_block_at(&self, pos: Point3<f32>) -> BlockTypes {
+        let gx = pos.x.floor() as i32;
+        let gy = pos.y.floor() as i32;
+        let gz = pos.z.floor() as i32;
+
+        let cx = gx.div_euclid(32);
+        let cy = gy.div_euclid(32);
+        let cz = gz.div_euclid(32);
+
+        let lx = gx.rem_euclid(32) as usize;
+        let ly = gy.rem_euclid(32) as usize;
+        let lz = gz.rem_euclid(32) as usize;
+
+        let key = pack_chunk_coords(cx, cy, cz);
+        if let Some(chunk) = self.chunks.get(&key) {
+            chunk.get(lx, ly, lz)
+        } else {
+            BlockTypes::STONE
         }
     }
 }

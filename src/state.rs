@@ -1,9 +1,10 @@
 use std::{collections::{HashMap, HashSet}, sync::{Arc, Mutex}, time::Instant};
+use log::info;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
-    engine::{data::pack_chunk_coords, player::Player},
+    engine::player::Player,
     game::{
         chunk::ChunkManager,
         world::{World, WorldConfig, WorldGenerator}
@@ -49,9 +50,10 @@ impl State {
         let renderer = Renderer::new(pipelines);
         
         let world_config = WorldConfig::default();
+        info!("using worldconfig {:#?}", world_config);
         let world_generator = Arc::new(WorldGenerator::new(&world_config));
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(16);
+        let chunk_manager = ChunkManager::new(20);
         
         Self {
             window,
@@ -110,7 +112,7 @@ impl State {
         let dt = (now - self.last_update).as_secs_f32();
         self.last_update = now;
         
-        self.player.update(&self.pressed_keys, dt);
+        self.player.update(&self.pressed_keys, dt, &self.world);
 
         let player_pos = self.player.pos;
         self.chunk_manager.update(

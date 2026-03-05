@@ -5,7 +5,7 @@ use fastnoise_lite::{FastNoiseLite, FractalType, NoiseType};
 
 use crate::{engine::data::{BlockTypes, CHUNK_SIZE, ChunkCoords}, game::{Chunk, world::{WorldConfig, generator}}};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum GenerationType {
     Flat,
     Test
