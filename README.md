@@ -6,6 +6,6 @@ Although please feel free to do a pullreq/issue ... Thank you!! <3
 ## how to run the damn thing!
 ```
 git clone This Repository Actually
-cargo run
+cargo run --release
 Yeah
 ```

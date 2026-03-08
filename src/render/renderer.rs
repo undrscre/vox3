@@ -2,21 +2,24 @@ use std::collections::HashMap;
 
 use log::info;
 
-use crate::{engine::meshgen::mesh_chunk, game::{Chunk, world::World}, render::{manager::{GPUMesh, ResourceManager}, pipeline::PipelineType}};
-
 use super::{
     device::GPUDevice,
-    pipeline::Pipeline
+    pipelines::{RenderPipelineTrait, DefaultPipeline},
+    manager::ResourceManager
 };
 
 pub struct Renderer {
-    pub pipelines: HashMap<PipelineType, Pipeline>,
+    pub stages: Vec<Box<dyn RenderPipelineTrait>>,
     pub resource_manager: ResourceManager
 }
 
 impl Renderer {
-    pub fn new(pipelines: HashMap<PipelineType, Pipeline>) -> Self {
-        Self {pipelines, resource_manager: ResourceManager::new() }
+    pub fn new(gpu: &GPUDevice) -> Self {
+        let mut stages: Vec<Box<dyn RenderPipelineTrait>> = Vec::new();
+
+        stages.push(Box::new(DefaultPipeline::new(gpu)));
+
+        Self {stages, resource_manager: ResourceManager::new() }
     }
 
     pub fn render_frame(&self, gpu: &GPUDevice) -> Result<(), wgpu::SurfaceError> {
@@ -26,82 +29,8 @@ impl Renderer {
             label: Some("Encoder")
         });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
-                label: Some("render_pass"), 
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store
-                    },
-                    depth_slice: None,
-                })], 
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &gpu.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }), 
-                timestamp_writes: None, 
-                occlusion_query_set: None 
-            });
-
-            if let Some(pipeline) = self.pipelines.get(&PipelineType::Default) {
-                render_pass.set_pipeline(&pipeline.render_pipeline);
-                render_pass.set_bind_group(0, &pipeline.camera_bind_group, &[]);
-
-                for mesh in self.resource_manager.meshes.values() {
-                    if mesh.index_count == 0 { continue; }
-
-                    render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
-                    render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
-                }
-            } else {
-                panic!("default pipeline isn't inserted into the renderer; panicking now")
-            }
-
-            if let Some(debug_pipeline) = self.pipelines.get(&PipelineType::DebugWireframe) {
-                render_pass.set_pipeline(&debug_pipeline.render_pipeline);
-                render_pass.set_bind_group(0, &debug_pipeline.camera_bind_group, &[]);
-                
-                for debug_mesh in self.resource_manager.debug_meshes.values() {
-                    render_pass.set_vertex_buffer(0, debug_mesh.vertex_buf.slice(..));
-                    render_pass.set_index_buffer(debug_mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..debug_mesh.index_count, 0, 0..1);
-                }
-            }
-        }
-
-        
-        if let Some(sky_pipeline) = self.pipelines.get(&PipelineType::Sky) {
-            {
-                let mut sky_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
-                    label: Some("sky render pass"), 
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment { 
-                        view: &view, 
-                        resolve_target: None, 
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
-                        depth_slice: None
-                    })], 
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment { 
-                        view: &gpu.depth_texture.view, 
-                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Discard }), 
-                        stencil_ops: None,
-                    }), 
-                    ..Default::default()
-                });
-
-                sky_pass.set_pipeline(&sky_pipeline.render_pipeline);
-                sky_pass.set_bind_group(0, &sky_pipeline.camera_bind_group, &[]);
-
-                // DRAW 4 VERTICES OUT OF THIN AIR. :yum:
-                sky_pass.draw(0..4, 0..1);
-            }
+        for stage in &self.stages {
+            stage.record(&mut encoder, &view, gpu, &self.resource_manager);
         }
 
         gpu.queue.submit(Some(encoder.finish()));

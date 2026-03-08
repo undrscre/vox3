@@ -3,7 +3,7 @@ use std::{collections::HashSet, sync::Arc};
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use winit::{event::{DeviceEvent, Event, MouseButton, WindowEvent}, keyboard::KeyCode};
 
-use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes, ChunkCoords, pack_chunk_coords, world_to_chunk}}, game::{Chunk, world::World}};
+use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes, ChunkCoords, pack_chunk_coords, world_to_chunk}}, game::{Chunk, world::World}, state::{InputState, WorldState}};
 
 pub struct Player {
     pub pos: Point3<f32>,
@@ -43,19 +43,17 @@ impl Player {
         }
     }
 
-    pub fn update(&mut self, pressed_keys: &HashSet<KeyCode>, dt: f32, world: &World) {
-        // self.get_local_chunk(world);
-
+    pub fn update(&mut self, input: &InputState, world_state: &WorldState, dt: f32) {
         let mut wish_dir = Vector3::new(0.,0.,0.);
-        if pressed_keys.contains(&KeyCode::KeyW) { wish_dir.z += 1.; }
-        if pressed_keys.contains(&KeyCode::KeyS) { wish_dir.z -= 1.; }
-        if pressed_keys.contains(&KeyCode::KeyA) { wish_dir.x -= 1.; }
-        if pressed_keys.contains(&KeyCode::KeyD) { wish_dir.x += 1.; }
+        if input.pressed_keys.contains(&KeyCode::KeyW) { wish_dir.z += 1.; }
+        if input.pressed_keys.contains(&KeyCode::KeyS) { wish_dir.z -= 1.; }
+        if input.pressed_keys.contains(&KeyCode::KeyA) { wish_dir.x -= 1.; }
+        if input.pressed_keys.contains(&KeyCode::KeyD) { wish_dir.x += 1.; }
 
         // gravity constant
         self.vel.y -= 35.0 * dt;
 
-        if self.on_ground && pressed_keys.contains(&KeyCode::Space) {
+        if self.on_ground && input.pressed_keys.contains(&KeyCode::Space) {
             self.vel.y = 10.0;
             self.on_ground = false;
         }
@@ -73,15 +71,11 @@ impl Player {
             self.vel.z = 0.0;
         }
 
-        // if self.on_ground && pressed_keys.contains(&KeyCode::ShiftLeft) {
-        //     self.vel.y = 50.0;
-        //     self.on_ground = false;
-        // }
-
         self.on_ground = false;
 
+        // oh goddd
         let next_y = self.pos.y + self.vel.y * dt;
-        if !self.is_colliding(Point3::new(self.pos.x, next_y, self.pos.z), world) {
+        if !self.is_colliding(Point3::new(self.pos.x, next_y, self.pos.z), &world_state.world) {
             self.pos.y = next_y;
         } else {
             if self.vel.y < 0.0 { 
@@ -94,13 +88,13 @@ impl Player {
         let next_x = self.pos.x + self.vel.x * dt;
         let next_z = self.pos.z + self.vel.z * dt;
 
-        if !self.is_colliding(Point3::new(next_x, self.pos.y, self.pos.z), world) {
+        if !self.is_colliding(Point3::new(next_x, self.pos.y, self.pos.z), &world_state.world) {
             self.pos.x = next_x;
         } else {
             self.vel.x = 0.0;
         }
 
-        if !self.is_colliding(Point3::new(self.pos.x, self.pos.y, next_z), world) {
+        if !self.is_colliding(Point3::new(self.pos.x, self.pos.y, next_z), &world_state.world) {
             self.pos.z = next_z;
         } else {
             self.vel.z = 0.0;

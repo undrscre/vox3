@@ -21,8 +21,8 @@ fn main() {
     // initialize the window ..!! hopefully .. we pray
     let event_loop = EventLoop::new().expect("can't create event loop");
     let window = WindowBuilder::new()
-        .with_title("Hello meong! .. 2!")
-        .with_min_inner_size(PhysicalSize {width: 400, height: 300})
+        .with_title("vox3")
+        .with_min_inner_size(PhysicalSize {width: 800, height: 600})
         .build(&event_loop)
         .expect("can't create window");
 
