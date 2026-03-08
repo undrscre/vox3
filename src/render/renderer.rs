@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use log::info;
+use crate::engine::frustum::Frustum;
 
 use super::{
     device::GPUDevice,
@@ -22,7 +20,7 @@ impl Renderer {
         Self {stages, resource_manager: ResourceManager::new() }
     }
 
-    pub fn render_frame(&self, gpu: &GPUDevice) -> Result<(), wgpu::SurfaceError> {
+    pub fn render_frame(&self, gpu: &GPUDevice, frustum: &Frustum) -> Result<(), wgpu::SurfaceError> {
         let output = gpu.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -30,7 +28,7 @@ impl Renderer {
         });
 
         for stage in &self.stages {
-            stage.record(&mut encoder, &view, gpu, &self.resource_manager);
+            stage.record(&mut encoder, &view, gpu, &self.resource_manager, frustum);
         }
 
         gpu.queue.submit(Some(encoder.finish()));

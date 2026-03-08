@@ -39,32 +39,32 @@ impl Chunk {
         }
     }
 
-    pub fn create_debug_mesh(pos: Point3<i32>, is_empty: bool, is_solid: bool) -> Mesh {
-        let s = CHUNK_SIZE as i32;
-        let ox = pos.x * s;
-        let oy = pos.y * s;
-        let oz = pos.z * s;
-        let packed = 0;
+    // pub fn create_debug_mesh(pos: Point3<i32>, is_empty: bool, is_solid: bool) -> Mesh {
+    //     let s = CHUNK_SIZE as i32;
+    //     let ox = pos.x * s;
+    //     let oy = pos.y * s;
+    //     let oz = pos.z * s;
+    //     let packed = 0;
 
-        let vertices = vec![
-            Vertex { position: [ox,     oy,     oz    ], packed }, // 0
-            Vertex { position: [ox + s, oy,     oz    ], packed }, // 1
-            Vertex { position: [ox + s, oy + s, oz    ], packed }, // 2
-            Vertex { position: [ox,     oy + s, oz    ], packed }, // 3
-            Vertex { position: [ox,     oy,     oz + s], packed }, // 4
-            Vertex { position: [ox + s, oy,     oz + s], packed }, // 5
-            Vertex { position: [ox + s, oy + s, oz + s], packed }, // 6
-            Vertex { position: [ox,     oy + s, oz + s], packed }, // 7
-        ];
+    //     let vertices = vec![
+    //         Vertex { position: [ox,     oy,     oz    ], packed }, // 0
+    //         Vertex { position: [ox + s, oy,     oz    ], packed }, // 1
+    //         Vertex { position: [ox + s, oy + s, oz    ], packed }, // 2
+    //         Vertex { position: [ox,     oy + s, oz    ], packed }, // 3
+    //         Vertex { position: [ox,     oy,     oz + s], packed }, // 4
+    //         Vertex { position: [ox + s, oy,     oz + s], packed }, // 5
+    //         Vertex { position: [ox + s, oy + s, oz + s], packed }, // 6
+    //         Vertex { position: [ox,     oy + s, oz + s], packed }, // 7
+    //     ];
 
-        let indices: Vec<u32> = vec![
-            0, 1, 1, 2, 2, 3, 3, 0, // bottom
-            4, 5, 5, 6, 6, 7, 7, 4, // top
-            0, 4, 1, 5, 2, 6, 3, 7  // pillars
-        ];
+    //     let indices: Vec<u32> = vec![
+    //         0, 1, 1, 2, 2, 3, 3, 0, // bottom
+    //         4, 5, 5, 6, 6, 7, 7, 4, // top
+    //         0, 4, 1, 5, 2, 6, 3, 7  // pillars
+    //     ];
 
-        Mesh { vertices, indices }
-    }
+    //     Mesh { vertices, indices }
+    // }
 
     pub fn get(&self, x: usize, y: usize, z: usize) -> BlockTypes {
         self.data[Self::idx(x, y, z)]

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cgmath::Vector3;
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
 use crate::{engine::meshgen::Mesh, game::chunk::BuildIdentityHasher};
@@ -40,6 +41,7 @@ pub struct GPUMesh {
     pub vertex_buf: wgpu::Buffer,
     pub index_buf: wgpu::Buffer,
     pub index_count: u32,
+    pub world_pos: cgmath::Vector3<f32>
 }
 
 impl GPUMesh {
@@ -60,6 +62,12 @@ impl GPUMesh {
             vertex_buf,
             index_buf,
             index_count: mesh.indices.len() as u32,
+            // fuck
+            world_pos: cgmath::Vector3::new(
+                mesh.world_pos.x as f32,
+                mesh.world_pos.y as f32,
+                mesh.world_pos.z as f32,
+            ),
         }
     }
 }

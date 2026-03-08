@@ -1,7 +1,8 @@
 use wgpu::{BindGroup, Buffer, RenderPipeline};
 
 use crate::engine::camera::CameraUniform;
-use crate::engine::data::Vertex;
+use crate::engine::data::{CHUNK_SIZE, Vertex};
+use crate::engine::frustum::Frustum;
 use crate::render::pipelines::RenderPipelineTrait;
 use crate::render::{
     device::GPUDevice,
@@ -75,7 +76,8 @@ impl RenderPipelineTrait for DefaultPipeline {
             encoder: &mut wgpu::CommandEncoder,
             view: &wgpu::TextureView,
             gpu: &'a GPUDevice,
-            resources: &'a crate::render::manager::ResourceManager
+            resources: &'a crate::render::manager::ResourceManager,
+            frustum: &Frustum
         ) 
     {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
@@ -106,6 +108,11 @@ impl RenderPipelineTrait for DefaultPipeline {
 
         for mesh in resources.meshes.values() {
             if mesh.index_count == 0 { continue; }
+
+            if !frustum.contains_chunk(mesh.world_pos, CHUNK_SIZE as f32) {
+                continue;
+            }
+
             render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
             render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);

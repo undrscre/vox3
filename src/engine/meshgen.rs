@@ -1,3 +1,5 @@
+use cgmath::Vector3;
+
 use crate::{engine::data::{BlockTypes, CHUNK_SIZE, Vertex}, game::chunk::manager::ChunkNeighborhood};
 
 struct Face {
@@ -23,21 +25,7 @@ const FACES: [Face; 6] = [
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
-}
-
-// hello square!
-impl Default for Mesh {
-    fn default() -> Self {
-        Self {
-            vertices: vec![
-                Vertex { position: [-1, -1, 0], packed: 0 }, // bottom-left
-                Vertex { position: [1 , -1, 0], packed: 0 }, // bottom-right
-                Vertex { position: [1 , 1 , 0], packed: 0 }, // top-right
-                Vertex { position: [-1, 1 , 0], packed: 0 }  // top-left
-            ],
-            indices: vec![0, 1, 2, 2, 3, 0]
-        }
-    }
+    pub world_pos: Vector3<i32>,
 }
 
 fn pack_information(normal: [i8; 3], block_type: BlockTypes) -> u32 {
@@ -107,5 +95,14 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
             }
         }
     }
-    Mesh { vertices, indices }
+
+    Mesh { 
+        vertices, 
+        indices, 
+        world_pos: Vector3::new(
+            chunk.position.x * CHUNK_SIZE as i32, 
+            chunk.position.y * CHUNK_SIZE as i32, 
+            chunk.position.z * CHUNK_SIZE as i32
+        )
+    }
 }

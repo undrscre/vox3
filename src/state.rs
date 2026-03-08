@@ -53,7 +53,7 @@ impl State {
 
     // render out the game state
     pub fn render(&self) -> Result<(), wgpu::SurfaceError> {
-        self.renderer.render_frame(&self.gpu)
+        self.renderer.render_frame(&self.gpu, &self.player.cam.frustum(self.gpu.size.width as f32 / self.gpu.size.height as f32))
     }
 
     // gpu surface resize callback

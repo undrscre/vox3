@@ -1,5 +1,7 @@
 use cgmath::{Deg, InnerSpace, Matrix4, Point3, Rad, SquareMatrix, Vector3, perspective};
 
+use crate::engine::frustum::Frustum;
+
 pub struct Camera {
     pub fov: f32,
     pub znear: f32,
@@ -76,13 +78,18 @@ impl Camera {
     }
 
     pub fn into_uniform(&self, aspect: f32) -> CameraUniform {
-        let view_proj = (OPENGL_TO_WGPU * self.proj_matrix(aspect) * self.view_matrix());
+        let view_proj = OPENGL_TO_WGPU * self.proj_matrix(aspect) * self.view_matrix();
         CameraUniform { 
             view_proj: view_proj.into(),
             inv_view_proj: view_proj.invert().unwrap().into(),
             pos: self.pos.into(),
             _padding: 0.
         }
+    }
+
+    pub fn frustum(&self, aspect: f32) -> Frustum {
+        let view_proj = OPENGL_TO_WGPU * self.proj_matrix(aspect) * self.view_matrix();
+        Frustum::from_matrix(view_proj)
     }
 }
 
