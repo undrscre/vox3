@@ -25,7 +25,7 @@ pub struct State {
     pub input_state: InputState,
 
     pub player: Player,
-    pub last_update:  Instant,
+    pub last_update: Instant,
 }
 
 impl State {

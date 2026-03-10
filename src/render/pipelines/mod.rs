@@ -5,7 +5,8 @@ use super::device::GPUDevice;
 
 pub mod default;
 pub use default::DefaultPipeline;
-
+pub mod sky;
+pub use sky::SkyPipeline;
 
 pub trait RenderPipelineTrait {
     fn update(&self, queue: &wgpu::Queue, camera: CameraUniform);
@@ -19,7 +20,11 @@ pub trait RenderPipelineTrait {
         frustum: &Frustum
     );
 
-    fn reload_shader(&mut self, gpu: &GPUDevice);
+    fn reload_shader(&mut self, gpu: &GPUDevice) {
+        todo!()
+    }
+
+    fn priority(&self) -> i32 { 0 }
 }
 
 pub fn create_camera_layout(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> (PipelineLayout, BindGroup, Buffer) {

@@ -1,4 +1,4 @@
-use crate::engine::frustum::Frustum;
+use crate::{engine::frustum::Frustum, render::pipelines::SkyPipeline};
 
 use super::{
     device::GPUDevice,
@@ -13,9 +13,12 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(gpu: &GPUDevice) -> Self {
-        let mut stages: Vec<Box<dyn RenderPipelineTrait>> = Vec::new();
+        let mut stages: Vec<Box<dyn RenderPipelineTrait>> = vec![
+            Box::new(DefaultPipeline::new(gpu)),
+            Box::new(SkyPipeline::new(gpu))
+        ];
 
-        stages.push(Box::new(DefaultPipeline::new(gpu)));
+        stages.sort_by_key(|s| s.priority());
 
         Self {stages, resource_manager: ResourceManager::new() }
     }
