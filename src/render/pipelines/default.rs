@@ -13,6 +13,7 @@ pub struct DefaultPipeline {
     pub pipeline: RenderPipeline,
     pub camera_bind_group: BindGroup,
     pub camera_buffer: Buffer,
+    pub indirect_buffer: Buffer,
 }
 
 impl DefaultPipeline {
@@ -58,8 +59,15 @@ impl DefaultPipeline {
                 multiview: None, 
                 cache: Default::default() 
             });
+        
+        let indirect_buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("terrain indirect buffer"),
+            size: (std::mem::size_of::<wgpu::util::DrawIndexedIndirectArgs>() * 5000) as u64, // room for 5k chunks,
+            usage: wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
-        Self { pipeline, camera_bind_group, camera_buffer }
+        Self { pipeline, camera_bind_group, camera_buffer, indirect_buffer }
     }
 }
 
@@ -70,7 +78,7 @@ impl RenderPipelineTrait for DefaultPipeline {
 
         queue.write_buffer(&self.camera_buffer, 0, data);
     }
-
+    
     fn record<'a>(
             &'a self,
             encoder: &mut wgpu::CommandEncoder,
@@ -79,7 +87,26 @@ impl RenderPipelineTrait for DefaultPipeline {
             resources: &'a crate::render::manager::ResourceManager,
             frustum: &Frustum
         ) 
-    {
+    {  
+        
+        let visible_meshes: Vec<_> = resources.meshes.values()
+            .filter(|m| m.index_count > 0)
+            .filter(|m| {
+                frustum.contains_chunk(m.world_pos, CHUNK_SIZE as f32)
+            })
+            .map(|m| wgpu::util::DrawIndexedIndirectArgs {
+                index_count: m.index_count,
+                instance_count: 1,
+                first_index: m.first_index,
+                base_vertex: m.base_vertex,
+                first_instance: 0
+            })
+            .collect();
+        
+        if visible_meshes.is_empty() {return;}
+
+        gpu.queue.write_buffer(&self.indirect_buffer, 0, bytemuck::cast_slice(&visible_meshes));
+
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
                 label: Some("voxel render pass"), 
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -106,20 +133,11 @@ impl RenderPipelineTrait for DefaultPipeline {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
-        for mesh in resources.meshes.values() {
-            if mesh.index_count == 0 { continue; }
+        render_pass.set_vertex_buffer(0, resources.megabuffer.vertex_buf.slice(..));
+        render_pass.set_index_buffer(resources.megabuffer.index_buf.slice(..), wgpu::IndexFormat::Uint32);
 
-            if !frustum.contains_chunk(mesh.world_pos, CHUNK_SIZE as f32) {
-                continue;
-            }
-
-            render_pass.set_vertex_buffer(0, mesh.vertex_buf.slice(..));
-            render_pass.set_index_buffer(mesh.index_buf.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
-        }
+        render_pass.multi_draw_indexed_indirect(&self.indirect_buffer, 0, visible_meshes.len() as u32);
     }
 
-    fn reload_shader(&mut self, gpu: &GPUDevice) {
-        todo!()
-    }
+    fn priority(&self) -> i32 {0}
 }

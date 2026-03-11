@@ -20,7 +20,7 @@ impl Renderer {
 
         stages.sort_by_key(|s| s.priority());
 
-        Self {stages, resource_manager: ResourceManager::new() }
+        Self {stages, resource_manager: ResourceManager::new(&gpu.device) }
     }
 
     pub fn render_frame(&self, gpu: &GPUDevice, frustum: &Frustum) -> Result<(), wgpu::SurfaceError> {

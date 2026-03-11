@@ -178,7 +178,7 @@ impl ChunkManager {
 
         let start_time = std::time::Instant::now();
         while let Ok((key, mesh_data)) = self.mesh_rx.try_recv() {
-            resource_manager.update_chunk_mesh(&gpu.device, key, &mesh_data);
+            resource_manager.update_chunk_mesh(&gpu.queue, key, &mesh_data);
             if start_time.elapsed().as_millis() > 2 { break; }
         }
     }

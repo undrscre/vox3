@@ -44,13 +44,18 @@ impl GPUDevice {
         
         let (device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::POLYGON_MODE_LINE,
-                required_limits: wgpu::Limits::defaults(),
+                required_features: wgpu::Features::POLYGON_MODE_LINE | wgpu::Features::MULTI_DRAW_INDIRECT | wgpu::Features::INDIRECT_FIRST_INSTANCE | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT,
+                required_limits: wgpu::Limits {
+                    max_buffer_size: 1024 * 1024 * 1024, 
+                    max_storage_buffer_binding_size: 1024 * 1024 * 1024,
+                    ..wgpu::Limits::default()
+                },
                 label: None,
                 ..Default::default()
             }
         ).await.unwrap();
         log::info!("Using device: {:#?}", adapter.get_info());
+ 
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps.formats[0];

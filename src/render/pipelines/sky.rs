@@ -70,8 +70,8 @@ impl RenderPipelineTrait for SkyPipeline {
             encoder: &mut wgpu::CommandEncoder,
             view: &wgpu::TextureView,
             gpu: &'a GPUDevice,
-            resources: &'a crate::render::manager::ResourceManager,
-            frustum: &crate::engine::frustum::Frustum
+            _resources: &'a crate::render::manager::ResourceManager,
+            _frustum: &crate::engine::frustum::Frustum
         ) {
             let mut sky_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
                 label: Some("sky render pass"), 
