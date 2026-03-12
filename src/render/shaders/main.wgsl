@@ -5,40 +5,60 @@ struct Camera {
 };
 
 @group(0) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<storage, read> chunk_offsets: array<vec4<f32>>;
 
 struct VertexIn {
-    @location(0) position: vec3<i32>,
-    @location(1) packed: u32,
+    @builtin(instance_index) draw_id: u32,
+    @location(0) packed: u32,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
-    @location(0) world_pos: vec3<f32>,
+    @location(0) uv: vec2<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) block_type: u32,
+    @location(2) world_pos: vec3<f32>,
+    @location(3) block_type: u32,
 };
 
 struct UnpackedData {
+    pos: vec3<f32>,
     normal: vec3<f32>,
-    block_type: u32
+    block_type: u32,
+    uv: vec2<f32>,
 };
 
 fn unpack_information(packed: u32) -> UnpackedData {
-    let block_type = packed & 0xFFu;
-    let dir = (packed >> 8u) & 0xFFu;
-    
+    let x = f32(packed & 0x3Fu);
+    let y = f32((packed >> 6u) & 0x3Fu);
+    let z = f32((packed >> 12u) & 0x3Fu);
+    let dir = (packed >> 18u) & 0x7u;
+    let block_type = (packed >> 21u) & 0x1FFu;
+    let uv_id = (packed >> 30u) & 0x3u;
+
     var normal: vec3<f32>;
     switch dir {
-        case 0u: { normal = vec3<f32>(1.0, 0.0, 0.0); }
-        case 1u: { normal = vec3<f32>(-1.0, 0.0, 0.0); }
-        case 2u: { normal = vec3<f32>(0.0, 1.0, 0.0); }
-        case 3u: { normal = vec3<f32>(0.0, -1.0, 0.0); }
-        case 4u: { normal = vec3<f32>(0.0, 0.0, 1.0); }
-        case 5u: { normal = vec3<f32>(0.0, 0.0, -1.0); }
+        case 0u: { normal = vec3<f32>(1.0, 0.0, 0.0); }  // +x
+        case 1u: { normal = vec3<f32>(-1.0, 0.0, 0.0); } // -x
+        case 2u: { normal = vec3<f32>(0.0, 1.0, 0.0); }  // +y
+        case 3u: { normal = vec3<f32>(0.0, -1.0, 0.0); } // -y
+        case 4u: { normal = vec3<f32>(0.0, 0.0, 1.0); }  // +z
+        case 5u: { normal = vec3<f32>(0.0, 0.0, -1.0); } // -z
         default: { normal = vec3<f32>(0.0, 0.0, 0.0); }
     }
-    
-    return UnpackedData(normal, block_type);
+
+    let uvs = array<vec2<f32>, 4>(
+        vec2<f32>(0.0, 0.0),
+        vec2<f32>(1.0, 0.0),
+        vec2<f32>(1.0, 1.0),
+        vec2<f32>(0.0, 1.0)
+    );
+
+    return UnpackedData(
+        vec3<f32>(x, y, z), 
+        normal, 
+        block_type, 
+        uvs[uv_id]
+    );
 }
 
 fn hash3(p: vec3<f32>) -> f32 {
@@ -50,12 +70,17 @@ fn hash3(p: vec3<f32>) -> f32 {
 @vertex
 fn vs_main(in: VertexIn) -> VertexOutput {
     var out: VertexOutput;
-    var data: UnpackedData = unpack_information(in.packed);
+    let data = unpack_information(in.packed);
 
-    out.position = camera.view_proj * vec4<f32>(vec3<f32>(in.position), 1.0);
-    out.world_pos = vec3<f32>(in.position) - data.normal * 0.001;
+    let world_offset = chunk_offsets[in.draw_id].xyz;
+    let world_pos = (data.pos + world_offset);
+
+    out.position = camera.view_proj * vec4<f32>(world_pos, 1.0);
+    
+    out.world_pos = world_pos - data.normal * 0.001; 
     out.normal = data.normal;
     out.block_type = data.block_type;
+    out.uv = data.uv;
 
     return out;
 }
@@ -76,9 +101,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var block_color: vec3<f32>;
     switch in.block_type {
-        case 0u: { block_color = vec3<f32>(0.0, 0.0, 0.0); }
+        case 0u: { block_color = vec3<f32>(in.uv.xy, 0.0); }
         case 2u: { block_color = vec3<f32>(0.0, 0.0, 1.0); }
-        default: { block_color = vec3<f32>(0.5, 0.5, 0.5); }
+        default: { block_color = vec3<f32>(in.uv.xy, 0.0); }
     }
     let result = (block_color * factor) * (ambient + diff);
 

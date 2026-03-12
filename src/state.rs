@@ -5,7 +5,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{Key, KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
-    engine::player::Player,
+    engine::{data::RENDER_DISTANCE, player::Player},
     game::{
         chunk::ChunkManager,
         world::{World, WorldConfig, WorldGenerator}
@@ -134,7 +134,7 @@ impl WorldState {
     pub fn new(world_config: WorldConfig) -> Self {
         let world_generator = Arc::new(WorldGenerator::new(&world_config));
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(20);
+        let chunk_manager = ChunkManager::new(RENDER_DISTANCE);
 
         Self { world, chunk_manager, world_generator }
     }

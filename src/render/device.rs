@@ -64,7 +64,7 @@ impl GPUDevice {
             format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Immediate, // fifo for vsync, immediate for not..?
+            present_mode: wgpu::PresentMode::Fifo, // fifo for vsync, immediate for not..?
             desired_maximum_frame_latency: 0,
             alpha_mode: caps.alpha_modes[0],
             view_formats: vec![],

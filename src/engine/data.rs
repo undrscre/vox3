@@ -5,6 +5,7 @@
 use cgmath::{Point3};
 
 pub const CHUNK_SIZE: usize = 32;
+pub const RENDER_DISTANCE: i32 = 16;
 
 pub type ChunkCoords = i32;
 
@@ -47,17 +48,12 @@ pub fn world_to_chunk(pos: Point3<f32>) -> Point3<ChunkCoords> {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vertex {
-    pub position: [i32; 3],
-    pub packed: u32, // packed data
-    // [xxxxxxxx][yyy][ppppppppppppppppppppppp]
-    // x - blocktype; y - normals; p - padding
-    // ^ this isn't final!!
+    pub packed: u32,
 }
 
 impl Vertex {
-    pub const ATTRS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![
-        0 => Sint32x3,
-        1 => Uint32,
+    pub const ATTRS: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![
+        0 => Uint32,
     ];
 
     // no clue what this means, copied from last iteration of engine
@@ -68,4 +64,27 @@ impl Vertex {
             attributes: &Self::ATTRS,
         }
     }
+}
+
+pub fn pack_information(x: u32, y: u32, z: u32, normal: [i8; 3], block_type: BlockTypes, uv_id: u32) -> u32 {
+    let mut data = 0u32;
+    let dir = match normal {
+        [1, 0, 0]  => 0, // +x
+        [-1, 0, 0] => 1, // -x
+        [0, 1, 0]  => 2, // +y
+        [0, -1, 0] => 3, // -y
+        [0, 0, 1]  => 4, // +z
+        [0, 0, -1] => 5, // -z
+        _ => 0,
+    };
+
+    // [xxxxxx][yyyyyy][zzzzzz][nnn][bbbbbbbb][uv]
+    data |= x & 0x3F;
+    data |= (y & 0x3F) << 6;
+    data |= (z & 0x3F) << 12;
+    data |= (dir & 0x7) << 18;
+    data |= ((block_type as u32) & 0x1FF) << 21;
+    data |= (uv_id & 0x3) << 30;
+
+    data
 }

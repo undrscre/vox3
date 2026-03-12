@@ -4,42 +4,53 @@ use crate::{engine::data::{BlockTypes, CHUNK_SIZE, Vertex}, game::chunk::manager
 
 struct Face {
     pub normal: [i8; 3],
-    pub verts: [[i32; 3]; 4],
+    pub verts: [[u32; 3]; 4],
+    pub uv_indices: [u32; 4]
 }
 
 const FACES: [Face; 6] = [
     // +z (front)
-    Face { normal: [0, 0, 1], verts: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]] },
+    Face { 
+        normal: [0, 0, 1], 
+        verts: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
     // -z (back)
-    Face { normal: [0, 0, -1], verts: [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]] },
+    Face { 
+        normal: [0, 0, -1], 
+        verts: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
     // +x (right)
-    Face { normal: [1, 0, 0], verts: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]] },
+    Face { 
+        normal: [1, 0, 0], 
+        verts: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
     // -x (left)
-    Face { normal: [-1, 0, 0], verts: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]] },
+    Face { 
+        normal: [-1, 0, 0], 
+        verts: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
     // +y (top)
-    Face { normal: [0, 1, 0], verts: [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]] },
+    Face { 
+        normal: [0, 1, 0], 
+        verts: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
     // -y (bottom)
-    Face { normal: [0, -1, 0], verts: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] },
+    Face { 
+        normal: [0, -1, 0], 
+        verts: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]], 
+        uv_indices: [0, 1, 2, 3] 
+    },
 ];
 
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
     pub world_pos: Vector3<i32>,
-}
-
-fn pack_information(normal: [i8; 3], block_type: BlockTypes) -> u32 {
-    let btype = block_type as u8;
-    let dir = match normal { // todo: integrate this into FACES
-        [1, 0, 0] => 0,
-        [-1, 0, 0] => 1,
-        [0, 1, 0] => 2,
-        [0, -1, 0] => 3,
-        [0, 0, 1] => 4,
-        [0, 0, -1] => 5,
-        _ => 0, // default case
-    };
-    (btype as u32) | ((dir as u32) << 8)
 }
 
 pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
@@ -75,16 +86,19 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
 
                     if neighbor_is_air {
                         let base_index = vertices.len() as u32;
-                        for v in face.verts {
-                            let packed: u32 = pack_information(face.normal, block);
-                            vertices.push(Vertex {
-                                position: [
-                                    (x as i32 + v[0]) + chunk.position.x as i32 * s,
-                                    (y as i32 + v[1]) + chunk.position.y as i32 * s,
-                                    (z as i32 + v[2]) + chunk.position.z as i32 * s,
-                                ],
-                                packed
-                            });
+                        for (v_idx, v) in face.verts.iter().enumerate() {
+                            let uv_id = face.uv_indices[v_idx];
+
+                            let packed: u32 = crate::engine::data::pack_information(
+                                x as u32 + v[0],
+                                y as u32 + v[1],
+                                z as u32 + v[2],
+                                face.normal,
+                                block,
+                                uv_id
+                            );
+                            
+                            vertices.push(Vertex { packed });
                         }
                         indices.extend_from_slice(&[
                             base_index, base_index + 1, base_index + 2,

@@ -1,19 +1,13 @@
-use std::{collections::HashSet, sync::Arc};
-
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use winit::{event::{DeviceEvent, Event, MouseButton, WindowEvent}, keyboard::KeyCode};
 
-use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes, ChunkCoords, pack_chunk_coords, world_to_chunk}}, game::{Chunk, world::World}, state::{InputState, WorldState}};
+use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes}}, game::{world::World}, state::{InputState, WorldState}};
 
 pub struct Player {
     pub pos: Point3<f32>,
     pub vel: Vector3<f32>,
 
     pub on_ground: bool,
-
-    // internal references for collision checks
-    pub chunk_pos: Point3<ChunkCoords>,
-    pub current_chunk: Option<Arc<Chunk>>,
 
     pub cam: Camera,
     pub cam_uniform: CameraUniform,
@@ -35,9 +29,6 @@ impl Player {
 
             cam, 
             cam_uniform,
-
-            chunk_pos: Point3 {x: 0, y: 0, z: 0},
-            current_chunk: None,
 
             speed: 12., sensitivity: 0.12, mouse_held: false,
         }

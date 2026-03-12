@@ -25,7 +25,7 @@ pub struct WorldConfig {
 
 impl Default for WorldConfig {
     fn default() -> Self {
-        Self { seed: rand::random::<i32>(), generator: GenerationType::Test, version: 0 }
+        Self { seed: 5, generator: GenerationType::Test, version: 0 }
     }
 }
 

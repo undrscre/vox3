@@ -1,7 +1,7 @@
 use wgpu::{BindGroup, Buffer, RenderPipeline};
 
 use crate::engine::camera::CameraUniform;
-use crate::engine::data::{CHUNK_SIZE, Vertex};
+use crate::engine::data::{CHUNK_SIZE, RENDER_DISTANCE, Vertex};
 use crate::engine::frustum::Frustum;
 use crate::render::pipelines::RenderPipelineTrait;
 use crate::render::{
@@ -14,11 +14,74 @@ pub struct DefaultPipeline {
     pub camera_bind_group: BindGroup,
     pub camera_buffer: Buffer,
     pub indirect_buffer: Buffer,
+
+    pub chunk_offset_bind_group: BindGroup,
+    pub chunk_offset_buffer: Buffer,
 }
 
 impl DefaultPipeline {
     pub fn new(gpu: &GPUDevice) -> Self {
-        let (layout, camera_bind_group, camera_buffer) = create_camera_layout(gpu, &CameraUniform::new());
+
+        let (_, _, camera_buffer) = create_camera_layout(gpu, &CameraUniform::new());
+
+        let camera_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("camera layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let offset_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("offset layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let chunk_offset_buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("chunk offsets"),
+            size: (((RENDER_DISTANCE + 1).pow(3)) * 16) as u64, 
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let chunk_offset_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &offset_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: chunk_offset_buffer.as_entire_binding(),
+            }],
+            label: Some("chunk offset bind group"),
+        });
+
+        let camera_bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera bind group"),
+        });
+
+        let layout = gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
+            label: Some("terrain pipeline layout"), 
+            bind_group_layouts: &[&camera_layout, &offset_layout], 
+            push_constant_ranges: &[] 
+        });
 
         let shader = gpu
             .device
@@ -67,7 +130,7 @@ impl DefaultPipeline {
             mapped_at_creation: false,
         });
 
-        Self { pipeline, camera_bind_group, camera_buffer, indirect_buffer }
+        Self { pipeline, camera_bind_group, camera_buffer, indirect_buffer, chunk_offset_bind_group, chunk_offset_buffer }
     }
 }
 
@@ -88,24 +151,37 @@ impl RenderPipelineTrait for DefaultPipeline {
             frustum: &Frustum
         ) 
     {  
-        
-        let visible_meshes: Vec<_> = resources.meshes.values()
+        let mut indirect_commands: Vec<wgpu::util::DrawIndexedIndirectArgs> = Vec::new();
+        let mut offset_data = Vec::<[f32; 4]>::with_capacity(5000);
+
+        let visible_chunks: Vec<_> = resources.meshes.values()
             .filter(|m| m.index_count > 0)
             .filter(|m| {
                 frustum.contains_chunk(m.world_pos, CHUNK_SIZE as f32)
             })
-            .map(|m| wgpu::util::DrawIndexedIndirectArgs {
-                index_count: m.index_count,
-                instance_count: 1,
-                first_index: m.first_index,
-                base_vertex: m.base_vertex,
-                first_instance: 0
-            })
             .collect();
         
-        if visible_meshes.is_empty() {return;}
+        if visible_chunks.is_empty() {return;}
 
-        gpu.queue.write_buffer(&self.indirect_buffer, 0, bytemuck::cast_slice(&visible_meshes));
+        for (i, chunk) in visible_chunks.iter().enumerate() {
+            indirect_commands.push(wgpu::util::DrawIndexedIndirectArgs {
+                index_count: chunk.index_count,
+                instance_count: 1,
+                first_index: chunk.first_index,
+                base_vertex: chunk.base_vertex as i32,
+                first_instance: i as u32, 
+            });
+
+            offset_data.push([
+                chunk.world_pos.x as f32,
+                chunk.world_pos.y as f32,
+                chunk.world_pos.z as f32,
+                0.0
+            ]);
+        }
+
+        gpu.queue.write_buffer(&self.chunk_offset_buffer, 0, bytemuck::cast_slice(&offset_data));
+        gpu.queue.write_buffer(&self.indirect_buffer, 0, bytemuck::cast_slice(&indirect_commands));
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
                 label: Some("voxel render pass"), 
@@ -132,11 +208,12 @@ impl RenderPipelineTrait for DefaultPipeline {
 
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+        render_pass.set_bind_group(1, &self.chunk_offset_bind_group, &[]);
 
         render_pass.set_vertex_buffer(0, resources.megabuffer.vertex_buf.slice(..));
         render_pass.set_index_buffer(resources.megabuffer.index_buf.slice(..), wgpu::IndexFormat::Uint32);
 
-        render_pass.multi_draw_indexed_indirect(&self.indirect_buffer, 0, visible_meshes.len() as u32);
+        render_pass.multi_draw_indexed_indirect(&self.indirect_buffer, 0, indirect_commands.len() as u32);
     }
 
     fn priority(&self) -> i32 {0}

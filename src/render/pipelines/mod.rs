@@ -61,7 +61,7 @@ pub fn create_camera_layout(gpu: &GPUDevice, camera_uniform: &CameraUniform) -> 
             gpu
                 .device
                 .create_pipeline_layout(&PipelineLayoutDescriptor {
-                    label: Some("layout"),
+                    label: Some("camera bind group layout"),
                     bind_group_layouts: &[&camera_bind_group_layout],
                     push_constant_ranges: &[],
                 }),
