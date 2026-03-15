@@ -9,12 +9,12 @@ pub const RENDER_DISTANCE: i32 = 16;
 
 pub type ChunkCoords = i32;
 
-// block definition data
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(u8)]
-pub enum BlockTypes {
-    AIR,
-    STONE,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(transparent)]
+pub struct BlockId(pub u16);
+
+impl BlockId {
+    pub const AIR: Self = Self(0); // the void
 }
 
 // position..whatever
@@ -65,8 +65,7 @@ impl Vertex {
         }
     }
 }
-
-pub fn pack_information(x: u32, y: u32, z: u32, normal: [i8; 3], block_type: BlockTypes, uv_id: u32) -> u32 {
+pub fn pack_information(x: u32, y: u32, z: u32, normal: [i8; 3], tex_id: u16, uv_id: u32) -> u32 {
     let mut data = 0u32;
     let dir = match normal {
         [1, 0, 0]  => 0, // +x
@@ -83,7 +82,7 @@ pub fn pack_information(x: u32, y: u32, z: u32, normal: [i8; 3], block_type: Blo
     data |= (y & 0x3F) << 6;
     data |= (z & 0x3F) << 12;
     data |= (dir & 0x7) << 18;
-    data |= ((block_type as u32) & 0x1FF) << 21;
+    data |= (tex_id as u32 & 0x1FF) << 21;
     data |= (uv_id & 0x3) << 30;
 
     data

@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use rustc_hash::FxHashMap;
-use crate::{engine::{data::Vertex, meshgen::Mesh}, game::chunk::BuildIdentityHasher, render::device::GPUDevice};
+use crate::{engine::{data::Vertex, meshgen::Mesh}};
 
 pub struct ResourceManager {
     pub meshes: FxHashMap<u64, GPUMesh>,

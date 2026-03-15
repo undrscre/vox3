@@ -1,11 +1,10 @@
-use std::{collections::{HashMap, HashSet}, sync::{Arc, Mutex}, time::Instant};
+use std::{collections::{HashSet}, sync::{Arc}, time::Instant};
 use cgmath::Point3;
 use log::info;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{Key, KeyCode, PhysicalKey}, window::Window};
+use winit::{dpi::PhysicalSize, event::{ElementState, Event, WindowEvent}, keyboard::{KeyCode, PhysicalKey}, window::Window};
 
 use crate::{
-    engine::{data::RENDER_DISTANCE, player::Player},
+    engine::{data::RENDER_DISTANCE, mods::{self, blocks::BlockRegistry}, player::Player},
     game::{
         chunk::ChunkManager,
         world::{World, WorldConfig, WorldGenerator}
@@ -32,12 +31,16 @@ impl State {
     pub async fn new(window: Arc<Window>) -> Self {
         // actual game shish
         let player = Player::new();
+
+        // mods!!
+        let (texture_registry, block_registry) = mods::load_every_mod("mods");
+
         let gpu = GPUDevice::new(window.clone()).await;
-        let renderer = Renderer::new(&gpu);
+        let renderer = Renderer::new(&gpu, texture_registry);
         
         let world_config = WorldConfig::default();
         info!("using worldconfig {:#?}", world_config);
-        let world_state = WorldState::new(world_config);
+        let world_state = WorldState::new(world_config, block_registry);
         let input_state = InputState::new();
 
         Self {
@@ -131,10 +134,10 @@ pub struct WorldState {
 }
 
 impl WorldState {
-    pub fn new(world_config: WorldConfig) -> Self {
-        let world_generator = Arc::new(WorldGenerator::new(&world_config));
+    pub fn new(world_config: WorldConfig, block_registry: BlockRegistry) -> Self {
+        let world_generator = Arc::new(WorldGenerator::new(&world_config, block_registry.clone()));
         let world = World::new(world_config);
-        let chunk_manager = ChunkManager::new(RENDER_DISTANCE);
+        let chunk_manager = ChunkManager::new(RENDER_DISTANCE, block_registry);
 
         Self { world, chunk_manager, world_generator }
     }

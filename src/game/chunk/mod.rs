@@ -1,30 +1,29 @@
 use std::hash::{BuildHasher, Hasher};
 use cgmath::{Point3};
-use crate::engine::{data::{BlockTypes, CHUNK_SIZE, ChunkCoords, Vertex}, meshgen::Mesh};
+use crate::engine::data::{BlockId, CHUNK_SIZE, ChunkCoords};
 
 // pub mod loader;
 pub mod manager;
 
 pub use manager::ChunkManager;
 
-// how the hell do i structure things ...
 pub struct Chunk {
     pub position: Point3<ChunkCoords>,
-    pub data: Vec<BlockTypes>,
+    pub data: Vec<BlockId>,
     pub is_empty: bool,
     pub is_solid: bool,
 }
 
 impl Chunk {
-    pub fn new(fill: Option<BlockTypes>, pos: Point3<ChunkCoords>) -> Self {
+    pub fn new(fill: Option<BlockId>, pos: Point3<ChunkCoords>) -> Self {
         let total_size = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
-        let mut data = vec![BlockTypes::AIR; total_size];
+        let mut data = vec![BlockId::AIR; total_size];
 
         let mut is_solid = false;
         let mut is_empty = true;
 
         if let Some(block) = fill {
-            if block != BlockTypes::AIR {
+            if block != BlockId::AIR {
                 data.fill(block);
                 is_empty = false;
                 is_solid = true;
@@ -66,11 +65,11 @@ impl Chunk {
     //     Mesh { vertices, indices }
     // }
 
-    pub fn get(&self, x: usize, y: usize, z: usize) -> BlockTypes {
+    pub fn get(&self, x: usize, y: usize, z: usize) -> BlockId {
         self.data[Self::idx(x, y, z)]
     }
 
-    pub fn set(&mut self, x: usize, y: usize, z: usize, block: BlockTypes) {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, block: BlockId) {
         self.data[Self::idx(x, y, z)] = block;
         self.is_empty = false;
     }

@@ -1,9 +1,9 @@
 use std::f32;
 
-use cgmath::{Matrix, Matrix2, Point3, num_traits::Pow};
+use cgmath::{Point3, num_traits::Pow};
 use fastnoise_lite::{FastNoiseLite, FractalType, NoiseType};
 
-use crate::{engine::data::{BlockTypes, CHUNK_SIZE, ChunkCoords}, game::{Chunk, world::{WorldConfig, generator}}};
+use crate::{engine::{data::{BlockId, CHUNK_SIZE, ChunkCoords}, mods::blocks::BlockRegistry}, game::{Chunk, world::WorldConfig}};
 
 #[derive(Clone, Debug)]
 pub enum GenerationType {
@@ -13,11 +13,12 @@ pub enum GenerationType {
 
 pub struct WorldGenerator {
     pub noise: FastNoiseLite,
-    pub config: WorldConfig
+    pub config: WorldConfig,
+    pub registry: BlockRegistry,
 }
 
 impl WorldGenerator {
-    pub fn new(config: &WorldConfig) -> Self {
+    pub fn new(config: &WorldConfig, block_registry: BlockRegistry) -> Self {
         let mut noise = FastNoiseLite::with_seed(config.seed);
         noise.set_noise_type(Some(NoiseType::OpenSimplex2));
         noise.set_fractal_type(Some(FractalType::FBm));
@@ -26,12 +27,15 @@ impl WorldGenerator {
         
         Self { 
             noise,
-            config: config.clone()
+            config: config.clone(),
+            registry: block_registry
         }
     }
 
     pub fn generate(&self, chunk_position: Point3<ChunkCoords>) -> Chunk {
         let mut chunk = Chunk::new(None, chunk_position);
+
+        let grass = self.registry.name_to_id["grass"];
 
         // todo: refactor later lol
         match self.config.generator {
@@ -41,9 +45,9 @@ impl WorldGenerator {
                         for y in 0..CHUNK_SIZE {
                             for z in 0..CHUNK_SIZE {
                                 let block = if y > 5 {
-                                    BlockTypes::STONE
+                                    BlockId(grass)
                                 } else {
-                                    BlockTypes::AIR
+                                    BlockId::AIR
                                 };
                                 chunk.set(x, y, z, block);
                             }
@@ -85,8 +89,8 @@ impl WorldGenerator {
 
                         for y in 0..CHUNK_SIZE {
                             let world_y = (chunk_position.y * CHUNK_SIZE as i32) + y as i32;
-                            let block = if world_y < height { stone_count += 1; BlockTypes::STONE } 
-                                        else { air_count += 1; BlockTypes::AIR };
+                            let block = if world_y < height { stone_count += 1; BlockId(grass) } 
+                                        else { air_count += 1; BlockId::AIR };
                         
                             chunk.set(x, y, z, block); 
                         }

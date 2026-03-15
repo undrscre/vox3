@@ -5,7 +5,7 @@ use cgmath::Point3;
 pub use generator::{GenerationType, WorldGenerator};
 use rustc_hash::FxHashMap;
 
-use crate::{engine::data::{BlockTypes, pack_chunk_coords}, game::chunk::Chunk};
+use crate::{engine::data::{BlockId, pack_chunk_coords}, game::chunk::Chunk};
 
 // eventually switch out for a more moddable approach lol
 
@@ -25,7 +25,7 @@ pub struct WorldConfig {
 
 impl Default for WorldConfig {
     fn default() -> Self {
-        Self { seed: 5, generator: GenerationType::Test, version: 0 }
+        Self { seed: rand::random::<i32>(), generator: GenerationType::Test, version: 0 }
     }
 }
 
@@ -37,7 +37,7 @@ impl World {
         }
     }
 
-    pub fn get_block_at(&self, pos: Point3<f32>) -> BlockTypes {
+    pub fn get_block_at(&self, pos: Point3<f32>) -> BlockId {
         let gx = pos.x.floor() as i32;
         let gy = pos.y.floor() as i32;
         let gz = pos.z.floor() as i32;
@@ -54,7 +54,7 @@ impl World {
         if let Some(chunk) = self.chunks.get(&key) {
             chunk.get(lx, ly, lz)
         } else {
-            BlockTypes::STONE
+            BlockId::AIR
         }
     }
 }

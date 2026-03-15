@@ -1,5 +1,5 @@
-use wgpu::{BindGroup, Buffer, PipelineLayout, PipelineLayoutDescriptor, RenderPipeline, util::DeviceExt};
-use crate::{engine::{camera::CameraUniform, data::Vertex, frustum::Frustum}, render::manager::ResourceManager};
+use wgpu::{BindGroup, Buffer, PipelineLayout, PipelineLayoutDescriptor, util::DeviceExt};
+use crate::{engine::{camera::CameraUniform, frustum::Frustum}, render::manager::ResourceManager};
 
 use super::device::GPUDevice;
 
@@ -20,7 +20,7 @@ pub trait RenderPipelineTrait {
         frustum: &Frustum
     );
 
-    fn reload_shader(&mut self, gpu: &GPUDevice) {
+    fn reload_shader(&mut self, _gpu: &GPUDevice) {
         todo!()
     }
 

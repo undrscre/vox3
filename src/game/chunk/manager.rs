@@ -2,7 +2,14 @@ use std::sync::Arc;
 
 use cgmath::{Point3, Vector3};
 use rustc_hash::FxHashSet;
-use crate::{engine::{data::{ChunkCoords, pack_chunk_coords, unpack_chunk_coords, world_to_chunk}, meshgen::{Mesh, mesh_chunk}}, game::{Chunk, world::{World, WorldGenerator}}, render::{device::GPUDevice, manager::ResourceManager, renderer::Renderer}};
+use crate::{
+    engine::{
+        data::{ChunkCoords, pack_chunk_coords, unpack_chunk_coords, world_to_chunk}, 
+        meshgen::{Mesh, mesh_chunk}, mods::blocks::BlockRegistry
+    }, 
+    game::{Chunk, world::{World, WorldGenerator}}, 
+    render::{device::GPUDevice, manager::ResourceManager}
+};
 
 pub struct ChunkManager {
     pub gen_distance: i32,
@@ -15,7 +22,9 @@ pub struct ChunkManager {
     mesh_rx: std::sync::mpsc::Receiver<(u64, Mesh)>,
 
     pending_chunks: FxHashSet<u64>,
-    dirty_chunks: FxHashSet<u64>
+    dirty_chunks: FxHashSet<u64>,
+
+    pub block_registry: BlockRegistry
 }
 
 pub struct ChunkNeighborhood {
@@ -24,7 +33,7 @@ pub struct ChunkNeighborhood {
 }
 
 impl ChunkManager {
-    pub fn new(gen_distance: i32) -> Self {
+    pub fn new(gen_distance: i32, block_registry: BlockRegistry) -> Self {
         let (chunk_tx, chunk_rx) = std::sync::mpsc::channel();
         let (mesh_tx, mesh_rx) = std::sync::mpsc::channel();
 
@@ -36,7 +45,8 @@ impl ChunkManager {
             mesh_tx,
             mesh_rx,
             pending_chunks: FxHashSet::default(),
-            dirty_chunks: FxHashSet::default()
+            dirty_chunks: FxHashSet::default(),
+            block_registry
         }
     }
 
@@ -163,12 +173,13 @@ impl ChunkManager {
 
             if let Some(neighborhood) = self.try_get_neighborhood(world, position) {
                 let tx = self.mesh_tx.clone();
+                let registry = self.block_registry.clone();
                 if neighborhood.neighbors.iter().any(|n| n.is_none()) {
                     continue; 
                 }
 
                 rayon::spawn(move || {
-                    let mesh_data = mesh_chunk(&neighborhood);
+                    let mesh_data = mesh_chunk(&neighborhood, &registry);
                     let _ = tx.send((key, mesh_data));
                 });
 

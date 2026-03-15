@@ -6,6 +6,8 @@ struct Camera {
 
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var<storage, read> chunk_offsets: array<vec4<f32>>;
+@group(2) @binding(0) var t_diffuse: texture_2d_array<f32>;
+@group(2) @binding(1) var s_diffuse: sampler;
 
 struct VertexIn {
     @builtin(instance_index) draw_id: u32,
@@ -85,27 +87,26 @@ fn vs_main(in: VertexIn) -> VertexOutput {
     return out;
 }
 
-var<private> ambient_strength: f32 = 0.21;
-var<private> ambient_light: vec3<f32> = vec3<f32>(0.1, 0.4, 0.8);
+var<private> ambient_strength: f32 = 0.5;
+var<private> ambient_light: vec3<f32> = vec3<f32>(0.4, 0.4, 0.8);
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let tex_color = textureSample(t_diffuse, s_diffuse, in.uv, i32(in.block_type));
+    
+    if (tex_color.a < 0.1) { discard; }
+
     let block_pos = floor(in.world_pos);
-    let factor = 0.50 + 0.50 * hash3(block_pos);
+    let factor = 1.0 - 0.25 * hash3(block_pos);
 
     let sun_direction = normalize(vec3<f32>(0.5, 1.0, 0.3));
     let normal = normalize(in.normal);
     let diff = max(dot(normal, sun_direction), 0.0);
 
     let ambient = ambient_light * ambient_strength;
-
-    var block_color: vec3<f32>;
-    switch in.block_type {
-        case 0u: { block_color = vec3<f32>(in.uv.xy, 0.0); }
-        case 2u: { block_color = vec3<f32>(0.0, 0.0, 1.0); }
-        default: { block_color = vec3<f32>(in.uv.xy, 0.0); }
-    }
-    let result = (block_color * factor) * (ambient + diff);
+    
+    // final color = texture * grit * (lighting)
+    let result = (tex_color.rgb * factor) * (ambient + diff);
 
     return vec4<f32>(result, 1.0);
 }

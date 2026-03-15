@@ -1,0 +1,10 @@
+[{
+    "name": "grass",
+    "id": 1,
+    "opaque": true,
+    "textures": {
+        "top": "green",
+        "bottom": "dirt",
+        "side": "dirt"
+    }
+}]

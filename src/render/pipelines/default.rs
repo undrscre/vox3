@@ -1,9 +1,11 @@
-use wgpu::{BindGroup, Buffer, RenderPipeline};
+    use wgpu::{BindGroup, Buffer, RenderPipeline};
 
 use crate::engine::camera::CameraUniform;
 use crate::engine::data::{CHUNK_SIZE, RENDER_DISTANCE, Vertex};
 use crate::engine::frustum::Frustum;
+use crate::engine::mods::texture::TextureRegistry;
 use crate::render::pipelines::RenderPipelineTrait;
+use crate::render::texture::TextureArray;
 use crate::render::{
     device::GPUDevice,
     pipelines::create_camera_layout
@@ -17,12 +19,38 @@ pub struct DefaultPipeline {
 
     pub chunk_offset_bind_group: BindGroup,
     pub chunk_offset_buffer: Buffer,
+
+    pub texture_bind_group: BindGroup
 }
 
 impl DefaultPipeline {
-    pub fn new(gpu: &GPUDevice) -> Self {
+    pub fn new(gpu: &GPUDevice, texture_registry: TextureRegistry) -> Self {
 
         let (_, _, camera_buffer) = create_camera_layout(gpu, &CameraUniform::new());
+
+        let texture_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("terrain textures bindgroup layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+
+        let texture_array = TextureArray::new(gpu, &texture_layout, texture_registry.paths, "terrain texture array").expect("can't create texturearray");
 
         let camera_layout = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("camera layout"),
@@ -79,7 +107,7 @@ impl DefaultPipeline {
 
         let layout = gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: Some("terrain pipeline layout"), 
-            bind_group_layouts: &[&camera_layout, &offset_layout], 
+            bind_group_layouts: &[&camera_layout, &offset_layout, &texture_layout], 
             push_constant_ranges: &[] 
         });
 
@@ -130,7 +158,7 @@ impl DefaultPipeline {
             mapped_at_creation: false,
         });
 
-        Self { pipeline, camera_bind_group, camera_buffer, indirect_buffer, chunk_offset_bind_group, chunk_offset_buffer }
+        Self { pipeline, camera_bind_group, camera_buffer, indirect_buffer, chunk_offset_bind_group, chunk_offset_buffer, texture_bind_group: texture_array.bind_group }
     }
 }
 
@@ -209,7 +237,8 @@ impl RenderPipelineTrait for DefaultPipeline {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(1, &self.chunk_offset_bind_group, &[]);
-
+        render_pass.set_bind_group(2, &self.texture_bind_group, &[]);
+        
         render_pass.set_vertex_buffer(0, resources.megabuffer.vertex_buf.slice(..));
         render_pass.set_index_buffer(resources.megabuffer.index_buf.slice(..), wgpu::IndexFormat::Uint32);
 

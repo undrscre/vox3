@@ -1,6 +1,6 @@
 use cgmath::Vector3;
 
-use crate::{engine::data::{BlockTypes, CHUNK_SIZE, Vertex}, game::chunk::manager::ChunkNeighborhood};
+use crate::{engine::{data::{BlockId, CHUNK_SIZE, Vertex}, mods::blocks::BlockRegistry}, game::chunk::manager::ChunkNeighborhood};
 
 struct Face {
     pub normal: [i8; 3],
@@ -53,7 +53,7 @@ pub struct Mesh {
     pub world_pos: Vector3<i32>,
 }
 
-pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
+pub fn mesh_chunk(neighborhood: &ChunkNeighborhood, block_registry: &BlockRegistry) -> Mesh {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut indices:  Vec<u32>    = Vec::new();
     let chunk = &neighborhood.center;
@@ -63,7 +63,7 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
         for y in 0..CHUNK_SIZE {
             for x in 0..CHUNK_SIZE {
                 let block = chunk.get(x, y, z);
-                if block == BlockTypes::AIR { continue; }
+                if block == BlockId::AIR { continue; }
 
                 for (i, face) in FACES.iter().enumerate() {
                     let nx = x as i32 + face.normal[0] as i32;
@@ -76,25 +76,32 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood) -> Mesh {
                             let nny = if ny < 0 { s - 1 } else if ny >= s { 0 } else { ny } as usize;
                             let nnz = if nz < 0 { s - 1 } else if nz >= s { 0 } else { nz } as usize;
                             
-                            neighbor.get(nnx, nny, nnz) == BlockTypes::AIR
+                            neighbor.get(nnx, nny, nnz) == BlockId::AIR
                         } else {
                             true
                         }
                     } else {
-                        chunk.get(nx as usize, ny as usize, nz as usize) == BlockTypes::AIR
+                        chunk.get(nx as usize, ny as usize, nz as usize) == BlockId::AIR
                     };
 
                     if neighbor_is_air {
                         let base_index = vertices.len() as u32;
                         for (v_idx, v) in face.verts.iter().enumerate() {
                             let uv_id = face.uv_indices[v_idx];
+                            let def = &block_registry.definitions[block.0 as usize];
 
+                            let tex_id = match face.normal {
+                                [0, 1, 0]  => def.textures.top,
+                                [0, -1, 0] => def.textures.bottom,
+                                _          => def.textures.sides, // all 4 sides use this
+                            };
+                            
                             let packed: u32 = crate::engine::data::pack_information(
                                 x as u32 + v[0],
                                 y as u32 + v[1],
                                 z as u32 + v[2],
                                 face.normal,
-                                block,
+                                tex_id,
                                 uv_id
                             );
                             

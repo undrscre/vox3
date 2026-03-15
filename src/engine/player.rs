@@ -1,7 +1,7 @@
 use cgmath::{InnerSpace, Point3, Vector3, Zero};
 use winit::{event::{DeviceEvent, Event, MouseButton, WindowEvent}, keyboard::KeyCode};
 
-use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockTypes}}, game::{world::World}, state::{InputState, WorldState}};
+use crate::{engine::{camera::{Camera, CameraUniform}, data::{BlockId}}, game::{world::World}, state::{InputState, WorldState}};
 
 pub struct Player {
     pub pos: Point3<f32>,
@@ -102,7 +102,7 @@ impl Player {
             for dy in [-height, -(height / 2.0), 0.0] {
                 for dz in [-radius, radius] {
                     let check_pos = next_position + Vector3::new(dx, dy, dz);
-                    if world.get_block_at(check_pos) == BlockTypes::STONE {
+                    if world.get_block_at(check_pos) != BlockId::AIR {
                         return true;
                     }
                 }
