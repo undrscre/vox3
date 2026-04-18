@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+pub mod biomes;
 pub mod generator;
+
 use cgmath::Point3;
 pub use generator::{GenerationType, WorldGenerator};
 use rustc_hash::FxHashMap;

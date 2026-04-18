@@ -13,25 +13,25 @@ const FACES: [Face; 6] = [
     Face { 
         normal: [0, 0, 1], 
         verts: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], 
-        uv_indices: [0, 1, 2, 3] 
+        uv_indices: [2, 3, 0, 1]
     },
     // -z (back)
     Face { 
         normal: [0, 0, -1], 
         verts: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], 
-        uv_indices: [0, 1, 2, 3] 
+        uv_indices: [2, 3, 0, 1]
     },
     // +x (right)
     Face { 
         normal: [1, 0, 0], 
         verts: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], 
-        uv_indices: [0, 1, 2, 3] 
+        uv_indices: [2, 3, 0, 1]
     },
     // -x (left)
     Face { 
         normal: [-1, 0, 0], 
         verts: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], 
-        uv_indices: [0, 1, 2, 3] 
+        uv_indices: [2, 3, 0, 1]
     },
     // +y (top)
     Face { 
@@ -101,11 +101,10 @@ pub fn mesh_chunk(neighborhood: &ChunkNeighborhood, block_registry: &BlockRegist
                                 y as u32 + v[1],
                                 z as u32 + v[2],
                                 face.normal,
-                                tex_id,
                                 uv_id
                             );
                             
-                            vertices.push(Vertex { packed });
+                            vertices.push(Vertex { packed, packed2: tex_id as u32 });
                         }
                         indices.extend_from_slice(&[
                             base_index, base_index + 1, base_index + 2,

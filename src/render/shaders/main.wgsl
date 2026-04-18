@@ -12,6 +12,7 @@ struct Camera {
 struct VertexIn {
     @builtin(instance_index) draw_id: u32,
     @location(0) packed: u32,
+    @location(1) tex_id: u32,
 };
 
 struct VertexOutput {
@@ -25,7 +26,6 @@ struct VertexOutput {
 struct UnpackedData {
     pos: vec3<f32>,
     normal: vec3<f32>,
-    block_type: u32,
     uv: vec2<f32>,
 };
 
@@ -58,7 +58,6 @@ fn unpack_information(packed: u32) -> UnpackedData {
     return UnpackedData(
         vec3<f32>(x, y, z), 
         normal, 
-        block_type, 
         uvs[uv_id]
     );
 }
@@ -81,7 +80,7 @@ fn vs_main(in: VertexIn) -> VertexOutput {
     
     out.world_pos = world_pos - data.normal * 0.001; 
     out.normal = data.normal;
-    out.block_type = data.block_type;
+    out.block_type = in.tex_id;
     out.uv = data.uv;
 
     return out;
@@ -104,9 +103,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diff = max(dot(normal, sun_direction), 0.0);
 
     let ambient = ambient_light * ambient_strength;
-    
-    // final color = texture * grit * (lighting)
-    let result = (tex_color.rgb * factor) * (ambient + diff);
+    let distance = length(in.world_pos - camera.pos);
 
-    return vec4<f32>(result, 1.0);
+    let fog_start = 100.0;
+    let fog_end = 700.0;
+    let fog_factor = clamp((distance - fog_start) / (fog_end - fog_start), 0.0, 1.0);
+
+    let result = (tex_color.rgb * factor) * (ambient + diff);
+    let final_color = mix(result, vec3<f32>(0.7, 0.8, 0.9), fog_factor);
+
+    return vec4<f32>(final_color, 1.0);
 }

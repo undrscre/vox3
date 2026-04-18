@@ -1,5 +1,7 @@
 use std::{fs, path::PathBuf};
 
+use log::debug;
+
 use crate::render::device::GPUDevice;
 
 pub struct TextureArray {
@@ -20,7 +22,6 @@ impl TextureArray {
         let mut width = 0; // no height because. durrr it's a block game there's block textures :clueless:
 
         for path in &images {
-            println!("awawa {:?}", path);
             let file = fs::read(path).expect("unable to read img file");
             let img = image::load_from_memory(&file)?;
             let rgba = img.to_rgba8();
@@ -31,6 +32,7 @@ impl TextureArray {
             }
 
             layers.extend_from_slice(&rgba.into_raw());
+            debug!("loaded texture: {:?}", path);
         }
 
         let amount = images.len() as u32;

@@ -1,10 +1,23 @@
 [{
     "name": "grass",
-    "id": 1,
     "opaque": true,
     "textures": {
-        "top": "green",
+        "top": "grass-top",
         "bottom": "dirt",
-        "side": "dirt"
+        "side": "grass-side"
+    }
+},
+{
+    "name": "dirt",
+    "opaque": true,
+    "textures": {
+        "all": "dirt"
+    }
+},
+{
+    "name": "stone",
+    "opaque": true,
+    "textures": {
+        "all": "stone"
     }
 }]

@@ -55,7 +55,7 @@ pub struct Megabuffer {
 
 impl Megabuffer {
     pub fn new(device: &wgpu::Device) -> Self {
-        const SIZE: u64 = 256; // in megabytes
+        const SIZE: u64 = 512; // in megabytes
         let vertex_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("terrain vertex megabuffer"),
             size: SIZE * 1024 * 1024,
